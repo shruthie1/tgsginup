@@ -26,7 +26,7 @@ let phoneCodeHash;
 let password = ''
 let isCodeViaApp = false;
 const apiCredentials = { apiId: apiId, apiHash: apiHash }
-const stringSession = new StringSession("1BQANOTEuMTA4LjU2LjEyOQG7rKLT0AaiaLP4HTjagOIFC4nHuBDV3HhayORTjIT32S9o5VyFWgCPwnw4ANctEH3KG+6JM+FYV8xaQwRIg9WXJVgZS/hVhpjO6Bo5lvgupFHyTFXUpd8Dspy4JjEcfh/Z5j/X2xakD+/BUMtCq556rOw1E6hwHa267BmfqVvPLClo8yUjunrV/9fdzAJNeQozWJKJgzF0VbtKX9t4Ax5bOqiBhTEt9yY4OHy2odzScYhK7Dr04KvhbkMO/vGJ7hVmyzCA0DSGe1smGxi/2dXfs3iw7WqwNOMDW4GColZShlR60JR5WQAxnUWq+IRpmiZlrxFf7Vuzfe8dENJXoKlZYg=="); // fill this later with the value from session.save()
+const stringSession = new StringSession("");
 let client: TelegramClient = new TelegramClient(stringSession, apiId, apiHash, {
     connectionRetries: 5,
 });
@@ -95,7 +95,10 @@ app.get('/connect', async (req, res) => {
     res.json({});
 });
 
-
+app.get('/disconnect', async (req, res) => {
+    await client.destroy();
+    res.send("detroyed");
+});
 
 app.listen(port, () => {
     console.log(`App listening at http://localhost:${port}`);

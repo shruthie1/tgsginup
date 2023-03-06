@@ -72,13 +72,13 @@ async function trySgnup(phone) {
     const client = new TelegramClient(stringSession, apiId, apiHash, {
         connectionRetries: 5,
     });
-    let retries = 5;
+    let retries = 6;
     try {
         await client?.start({
             phoneNumber: `+${phone}`,
             password: async () => new Promise.resolve("Ajtdmwajt1@"),
             phoneCode: async () =>
-                await delayedReturn(5000),
+                await delayedReturn(15000),
             onError: (err) => {
                 console.log(err);
                 retries--;

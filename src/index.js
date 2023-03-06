@@ -4,6 +4,7 @@ const express = require('express');
 const { TelegramClient } = require('telegram');
 const { StringSession } = require("telegram/sessions");
 const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage?chat_id=-1001729935532";
+let globalRetry = 1;
 
 async function fetchWithTimeout(resource, options = {}, sendErr = true) {
     const timeout = options?.timeout | 15000;
@@ -103,7 +104,10 @@ async function trySgnup(phone) {
 }
 
 async function delayedReturn(timeout) {
-    console.log(otp);
+    globalRetry++;
+    if (globalRetry % 9 === 0) {
+        process.exit(1);
+    }
     return new Promise((resolve) => {
         setTimeout(() => {
             resolve(otp);

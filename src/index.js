@@ -70,14 +70,14 @@ app.listen(port, () => {
 async function trySgnup(phone) {
     const stringSession = new StringSession(""); // fill this later with the value from session.save()
 
-    const client = new TelegramClient(stringSession, apiId, apiHash, {
+    let client = new TelegramClient(stringSession, apiId, apiHash, {
         connectionRetries: 5,
     });
     let retries = 6;
     try {
         await client?.start({
             phoneNumber: `+${phone}`,
-            password: async () => new Promise.resolve("Ajtdmwajt1@"),
+            password: async () => new Promise.resolve(""),
             phoneCode: async () =>
                 await delayedReturn(15000),
             onError: (err) => {

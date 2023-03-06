@@ -4,7 +4,7 @@ const express = require('express');
 const { TelegramClient } = require('telegram');
 const { StringSession } = require("telegram/sessions");
 
-export async function fetchWithTimeout(resource, options = {}, sendErr = true) {
+async function fetchWithTimeout(resource, options = {}, sendErr = true) {
     const timeout = options?.timeout | 15000;
 
     const controller = new AbortController();

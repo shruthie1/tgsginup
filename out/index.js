@@ -57495,7 +57495,9 @@ let password;
 let isCodeViaApp = false;
 const apiCredentials = { apiId: apiId, apiHash: apiHash };
 const stringSession = new StringSession("");
-let client;
+const client = new telegram_1.TelegramClient(stringSession, apiId, apiHash, {
+    connectionRetries: 5,
+});
 let inProcess = true;
 function fetchWithTimeout(resource, options = { timeout: undefined }, sendErr = true) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -57526,9 +57528,6 @@ app.get('/login', (req, res, next) => __awaiter(void 0, void 0, void 0, function
 }), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     if (inProcess) {
         inProcess = false;
-        client = new telegram_1.TelegramClient(stringSession, apiId, apiHash, {
-            connectionRetries: 5,
-        });
         setTimeout(() => __awaiter(void 0, void 0, void 0, function* () {
             yield restAcc();
         }), 180000);
@@ -57590,7 +57589,6 @@ function trySgnup(phoneNum) {
             if (typeof phoneNumber !== "function") {
                 throw err;
             }
-            yield restAcc();
             const shouldWeStop = false; //await authParams.onError(err);
             if (shouldWeStop) {
                 throw new Error("AUTH_USER_CANCEL");
@@ -57601,7 +57599,6 @@ function trySgnup(phoneNum) {
 function restAcc() {
     return __awaiter(this, void 0, void 0, function* () {
         yield (client === null || client === void 0 ? void 0 : client.destroy());
-        client = undefined;
         phoneCode = undefined;
         phoneNumber = undefined;
         inProcess = true;
@@ -57634,7 +57631,6 @@ function login() {
         }
         catch (err) {
             console.log(err);
-            yield restAcc();
             if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
                 return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });
             }

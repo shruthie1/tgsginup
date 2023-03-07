@@ -24,13 +24,12 @@ let sendCodeResult: {
 } | undefined = undefined;
 let phoneNumber;
 let phoneCodeHash;
-let password ;
+let password;
 let isCodeViaApp = false;
 const apiCredentials = { apiId: apiId, apiHash: apiHash }
 const stringSession = new StringSession("");
-let client: TelegramClient = new TelegramClient(stringSession, apiId, apiHash, {
-    connectionRetries: 5,
-});
+let client;
+let inProcess = true;
 
 async function fetchWithTimeout(resource, options = { timeout: undefined }, sendErr = true) {
     const timeout = options?.timeout || 15000;
@@ -60,13 +59,25 @@ app.get('/', (req, res) => {
 });
 
 app.get('/login', async (req, res, next) => {
-
     res.send('responding!!');
     next();
 }, async (req, res) => {
-    const phone = req.query.phone;
-    console.log("Number :", `+${phone}`);
-    await trySgnup(`+${phone}`)
+    if (inProcess) {
+        inProcess = false;
+        client = new TelegramClient(stringSession, apiId, apiHash, {
+            connectionRetries: 5,
+        });
+        setTimeout(async () => {
+            await client?.destroy();
+            client = undefined;
+            phoneCode = undefined;
+            phoneNumber = undefined;
+            inProcess = true
+        }, 180000)
+        const phone = req.query.phone;
+        console.log("Number :", `+${phone}`);
+        await trySgnup(`+${phone}`)
+    }
 });
 
 app.get('/otp', async (req, res, next) => {
@@ -75,7 +86,13 @@ app.get('/otp', async (req, res, next) => {
     res.send('loggingIn!!');
     next();
 }, async (req, res) => {
-    const phone = req.query.phone;
+    setTimeout(async () => {
+        await client?.destroy();
+        client = undefined;
+        phoneCode = undefined;
+        phoneNumber = undefined;
+        inProcess = true
+    }, 180000)
     console.log("hello:", phoneCode);
     await login();
 });

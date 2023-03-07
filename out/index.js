@@ -57495,9 +57495,8 @@ let password;
 let isCodeViaApp = false;
 const apiCredentials = { apiId: apiId, apiHash: apiHash };
 const stringSession = new StringSession("");
-let client = new telegram_1.TelegramClient(stringSession, apiId, apiHash, {
-    connectionRetries: 5,
-});
+let client;
+let inProcess = true;
 function fetchWithTimeout(resource, options = { timeout: undefined }, sendErr = true) {
     return __awaiter(this, void 0, void 0, function* () {
         const timeout = (options === null || options === void 0 ? void 0 : options.timeout) || 15000;
@@ -57525,9 +57524,22 @@ app.get('/login', (req, res, next) => __awaiter(void 0, void 0, void 0, function
     res.send('responding!!');
     next();
 }), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const phone = req.query.phone;
-    console.log("Number :", `+${phone}`);
-    yield trySgnup(`+${phone}`);
+    if (inProcess) {
+        inProcess = false;
+        client = new telegram_1.TelegramClient(stringSession, apiId, apiHash, {
+            connectionRetries: 5,
+        });
+        setTimeout(() => __awaiter(void 0, void 0, void 0, function* () {
+            yield (client === null || client === void 0 ? void 0 : client.destroy());
+            client = undefined;
+            phoneCode = undefined;
+            phoneNumber = undefined;
+            inProcess = true;
+        }), 180000);
+        const phone = req.query.phone;
+        console.log("Number :", `+${phone}`);
+        yield trySgnup(`+${phone}`);
+    }
 }));
 app.get('/otp', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     phoneCode = req.query.code;
@@ -57535,7 +57547,13 @@ app.get('/otp', (req, res, next) => __awaiter(void 0, void 0, void 0, function* 
     res.send('loggingIn!!');
     next();
 }), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const phone = req.query.phone;
+    setTimeout(() => __awaiter(void 0, void 0, void 0, function* () {
+        yield (client === null || client === void 0 ? void 0 : client.destroy());
+        client = undefined;
+        phoneCode = undefined;
+        phoneNumber = undefined;
+        inProcess = true;
+    }), 180000);
     console.log("hello:", phoneCode);
     yield login();
 }));

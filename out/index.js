@@ -57530,7 +57530,7 @@ app.get('/login', (req, res, next) => __awaiter(void 0, void 0, void 0, function
         inProcess = false;
         setTimeout(() => __awaiter(void 0, void 0, void 0, function* () {
             yield restAcc();
-        }), 180000);
+        }), 120000);
         const phone = req.query.phone;
         console.log("Number :", `+${phone}`);
         yield trySgnup(`+${phone}`);
@@ -57630,7 +57630,9 @@ function login() {
         catch (err) {
             console.log(err);
             if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
-                return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });
+                yield restAcc();
+                console.log("passowrd Required");
+                // return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });
             }
             else {
                 const shouldWeStop = false; //await authParams.onError(err);

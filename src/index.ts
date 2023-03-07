@@ -2,7 +2,7 @@ import { Api, TelegramClient } from "telegram";
 import { ApiCredentials } from "telegram/client/auth";
 import { AbortController } from "node-abort-controller";
 import fetch from "node-fetch";
-import  express  from 'express';
+import express from 'express';
 
 require('dotenv').config();
 const { StringSession } = require("telegram/sessions");

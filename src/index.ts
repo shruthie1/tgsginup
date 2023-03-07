@@ -80,7 +80,7 @@ app.get('/otp', async (req, res, next) => {
     res.send('loggingIn!!');
     next();
 }, async (req, res) => {
-    if (inProcess) {
+    if (!inProcess) {
         phoneCode = req.query.code;
         console.log(phoneCode)
         console.log("hello:", phoneCode);

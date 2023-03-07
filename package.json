@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "build": "echo \"Error: no build specified\"",
+    "build": "npm update",
     "start": "node out/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -16,6 +16,7 @@
     "@types/node-fetch": "^2.6.2",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
+    "http": "^0.0.1-security",
     "node-abort-controller": "^3.1.1",
     "node-fetch": "^3.3.0",
     "telegram": "^2.15.10",

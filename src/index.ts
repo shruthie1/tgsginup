@@ -24,7 +24,7 @@ let sendCodeResult: {
 } | undefined = undefined;
 let phoneNumber;
 let phoneCodeHash;
-let password = ''
+let password ;
 let isCodeViaApp = false;
 const apiCredentials = { apiId: apiId, apiHash: apiHash }
 const stringSession = new StringSession("");

@@ -2,10 +2,9 @@ import { Api, TelegramClient } from "telegram";
 import { ApiCredentials } from "telegram/client/auth";
 import { AbortController } from "node-abort-controller";
 import fetch from "node-fetch";
+import  express  from 'express';
 
-const dotenv = require('dotenv');
-dotenv.config();
-const express = require('express');
+require('dotenv').config();
 const { StringSession } = require("telegram/sessions");
 const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage?chat_id=-1001729935532";
 

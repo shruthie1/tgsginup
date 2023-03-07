@@ -57541,7 +57541,7 @@ app.get('/otp', (req, res, next) => __awaiter(void 0, void 0, void 0, function* 
     res.send('loggingIn!!');
     next();
 }), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    if (inProcess) {
+    if (!inProcess) {
         phoneCode = req.query.code;
         console.log(phoneCode);
         console.log("hello:", phoneCode);

@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
-    "build": "echo \"Error: no build specified\"",
+    "build": "npm i && webpack --mode development",
     "compile": "webpack --mode development",
     "start": "node out/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"

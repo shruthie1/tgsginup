@@ -9,6 +9,8 @@ const { StringSession } = require("telegram/sessions");
 const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage?chat_id=-1001729935532";
 
 const app = express();
+let count = 0;
+let actKey = 0;
 let creds = [
     {
         apiId: 27919939,
@@ -20,9 +22,24 @@ let creds = [
     },
     {
         apiId: 2899,
-        apiHash: "b4e654dd2a051930d0a30bb2add80d09"
+        apiHash: "36722c72256a24c1225de00eb6a1ca74"
     },
-    
+    {
+        apiId: 24559917,
+        apiHash: "702294de6c08f4fd8c94c3141e0cebfb"
+    },
+    {
+        apiId: 12777557,
+        apiHash: "05054fc7885dcfa18eb7432865ea3500"
+    },
+    {
+        apiId: 27565391,
+        apiHash: "a3a0a2e895f893e2067dae111b20f2d9"
+    },
+    {
+        apiId: 23195238,
+        apiHash: "15a8b085da74163f158eabc71c55b000"
+    },
 ]
 const port = 4000;
 const apiId = 25328268;
@@ -127,9 +144,19 @@ app.listen(port, () => {
 
 
 async function trySgnup(phoneNum: string) {
+
     phoneNumber = phoneNum
     let retries = 6;
     try {
+        count++;
+        if (count % creds.length == 0) {
+            actKey = (actKey + 1) % creds.length
+        }
+        client = new TelegramClient(stringSession, creds[actKey].apiId, creds[actKey].apiHash, {
+            connectionRetries: 5,
+        });
+        console.log("API DETAILS:", creds[actKey].apiId, creds[actKey].apiHash);
+
         if (!client.connected) {
             await client.connect();
         }
@@ -165,7 +192,8 @@ async function restAcc() {
 
 async function login() {
     try {
-        console.log("inside:", phoneCode, phoneNumber, phoneCodeHash);
+
+        console.log("inside:", phoneCode, phoneNumber, phoneCodeHash, creds[actKey].apiId, creds[actKey].apiHash);
 
         if (!phoneCode) {
             throw new Error("Code is empty");

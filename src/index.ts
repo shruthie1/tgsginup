@@ -10,8 +10,8 @@ const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkp
 
 const app = express();
 const port = 4000;
-const apiId = 2899;
-const apiHash = "36722c72256a24c1225de00eb6a1ca74"
+const apiId = 27919939;
+const apiHash = "5ed3834e741b57a560076a1d38d2fa94"
 let phoneCode;
 let isRegistrationRequired = false;
 let termsOfService;

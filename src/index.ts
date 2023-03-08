@@ -42,8 +42,8 @@ let creds = [
     },
 ]
 const port = 4000;
-const apiId = 25328268;
-const apiHash = "b4e654dd2a051930d0a30bb2add80d09"
+let apiId = 25328268;
+let apiHash = "b4e654dd2a051930d0a30bb2add80d09"
 let phoneCode;
 let isRegistrationRequired = false;
 let termsOfService;
@@ -58,7 +58,6 @@ let phoneNumber;
 let phoneCodeHash;
 let password;
 let isCodeViaApp = false;
-const apiCredentials = { apiId: apiId, apiHash: apiHash }
 const stringSession = new StringSession("");
 let client = new TelegramClient(stringSession, apiId, apiHash, {
     connectionRetries: 5,
@@ -148,21 +147,15 @@ async function trySgnup(phoneNum: string) {
     phoneNumber = phoneNum
     let retries = 6;
     try {
-        count++;
-        if (count % creds.length == 0) {
-            actKey = (actKey + 1) % creds.length
-        }
-        client = new TelegramClient(stringSession, creds[actKey].apiId, creds[actKey].apiHash, {
-            connectionRetries: 5,
-        });
-        console.log("API DETAILS:", creds[actKey].apiId, creds[actKey].apiHash);
+
+        console.log("API DETAILS:", apiId, apiHash);
 
         if (!client.connected) {
             await client.connect();
         }
         const sendCodeResult = await sendCode(
             client,
-            apiCredentials,
+            { apiId: apiId, apiHash: apiHash },
             phoneNumber);
         phoneCodeHash = sendCodeResult.phoneCodeHash;
         isCodeViaApp = sendCodeResult.isCodeViaApp;
@@ -188,6 +181,13 @@ async function restAcc() {
     phoneCode = undefined;
     phoneNumber = undefined;
     inProcess = true;
+    actKey = (actKey + 1) % creds.length;
+    apiHash = creds[actKey].apiHash;
+    apiId = creds[actKey].apiId;
+
+    client = new TelegramClient(stringSession, apiId, apiHash, {
+        connectionRetries: 5,
+    });
 }
 
 async function login() {

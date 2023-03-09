@@ -181,6 +181,7 @@ async function trySgnup(phoneNum: string) {
 }
 
 async function restAcc() {
+    process.exit(1)
     await sleep(1000);
     client.session.delete();
     await client?.destroy();

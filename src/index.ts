@@ -88,7 +88,9 @@ async function fetchWithTimeout(resource, options = { timeout: undefined }, send
 
 
 app.get('/', async(req, res) => {
-    await client.connect();
+    if (!client?.connected) {
+            await client.connect();
+        }
     res.send('Hello World!');
 });
 

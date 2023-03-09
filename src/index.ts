@@ -72,7 +72,7 @@ async function fetchWithTimeout(resource, options: any = { timeout: undefined },
     const id = setTimeout(() => controller.abort(), timeout);
     try {
         const url = encodeURI(resource);
-        console.log(resource, url);
+        // console.log(resource, url);
         // const response = {ok :true}
         const response = await fetch(url, {
             ...options,

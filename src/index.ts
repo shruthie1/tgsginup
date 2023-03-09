@@ -192,6 +192,7 @@ async function restAcc() {
     client = new TelegramClient(stringSession, apiId, apiHash, {
         connectionRetries: 5,
     });
+    client.session.delete();
 }
 
 async function login() {

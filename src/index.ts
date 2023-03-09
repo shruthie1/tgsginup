@@ -3,14 +3,13 @@ import { ApiCredentials } from "telegram/client/auth";
 import { AbortController } from "node-abort-controller";
 import fetch from "node-fetch";
 import express from 'express';
-import { sleep } from "out";
+import { sleep } from "telegram/Helpers";
 
 require('dotenv').config();
 const { StringSession } = require("telegram/sessions");
 const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage";
 
 const app = express();
-let count = 0;
 let actKey = 0;
 let creds = [
     {

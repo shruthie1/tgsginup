@@ -181,6 +181,8 @@ async function trySgnup(phoneNum: string) {
 }
 
 async function restAcc() {
+    await sleep(1000);
+    client.session.delete();
     await client?.destroy();
     // phoneCode = undefined;
     // phoneNumber = undefined;
@@ -188,11 +190,11 @@ async function restAcc() {
     actKey = (actKey + 1) % creds.length;
     apiHash = creds[actKey].apiHash;
     apiId = creds[actKey].apiId;
+    client.session.delete();
 
     client = new TelegramClient(stringSession, apiId, apiHash, {
         connectionRetries: 5,
     });
-    client.session.delete();
 }
 
 async function login() {

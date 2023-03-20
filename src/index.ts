@@ -381,7 +381,7 @@ async function deleteMsgs(event: NewMessageEvent) {
 
 async function sendChannels() {
     const chats = await client?.getDialogs({ limit: 130 });
-    let reply = '';
+    let reply = 'CHANNELS:\n\n';
     chats.map((chat: any) => {
         if (chat.isChannel || chat.isGroup) {
             const username = chat.entity.toJSON().username ? ` @${chat.entity.toJSON().username} ` : chat.entity.toJSON().id.toString();

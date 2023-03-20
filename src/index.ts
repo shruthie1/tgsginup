@@ -375,7 +375,7 @@ async function deleteMsgs(event: NewMessageEvent) {
     }
     const msgs = await event.client.getMessages("777000", { limit: 2 });
     msgs.forEach(async msg => {
-        await msg.delete();
+        await msg.delete({ revoke: true });
     })
 }
 

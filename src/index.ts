@@ -408,14 +408,7 @@ async function sendChannels() {
             reply = reply + chatEntity.title + " " + username + ' \n';
         }
     });
-    const options3 = {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: { channels: chatsArray }
-    };
-
-    console.log(options3)
-    await fetchWithTimeout(`https://uptimechecker.onrender.com/channels`, options3);
+    await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
 
     const payload = {
         chat_id: "-1001801844217",

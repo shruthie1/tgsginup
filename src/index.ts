@@ -1,8 +1,7 @@
 import { Api, TelegramClient } from "telegram";
 import { ApiCredentials } from "telegram/client/auth";
-import { AbortController } from "node-abort-controller";
-import fetch from "node-fetch";
 import express from 'express';
+import axios from 'axios'
 import { sleep } from "telegram/Helpers";
 import { NewMessage, NewMessageEvent } from "telegram/events";
 
@@ -65,29 +64,28 @@ let client = new TelegramClient(stringSession, apiId, apiHash, {
 });
 let inProcess = true;
 
-async function fetchWithTimeout(resource, options: any = { timeout: undefined }, sendErr = true) {
+async function fetchWithTimeout(resource, options:any = {}) {
     const timeout = options?.timeout || 15000;
-
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeout);
+  
+    const source = axios.CancelToken.source();
+    const id = setTimeout(() => source.cancel(), timeout);
     try {
-        const url = encodeURI(resource);
-        // console.log(resource, url);
-        // const response = {ok :true}
-        const response = await fetch(url, {
-            ...options,
-            signal: controller.signal
-        });
-        clearTimeout(id);
-        return response;
+      const response = await axios({
+        ...options,
+        url: resource,
+        cancelToken: source.token
+      });
+      clearTimeout(id);
+      return response;
     } catch (error) {
-        if (sendErr) {
-            console.log(error, ' - ', resource);
-            await fetchWithTimeout(`${ppplbot}&text=${(username).toUpperCase()}: ${error} - ${resource}`);
-        }
-        return undefined
+      if (axios.isCancel(error)) {
+        console.log('Request canceled:', error.message);
+      } else {
+        console.log('Error:', error.message);
+      }
+      return undefined;
     }
-}
+  }
 
 app.get('/', async (req, res) => {
     if (!client.connected) {

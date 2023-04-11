@@ -410,12 +410,13 @@ async function sendChannels() {
             reply = reply + chatEntity.title + " " + username + ' \n';
         }
     });
-    
     const options3 = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: { channels: chatsArray }
     };
+
+    console.log(options3)
     await fetchWithTimeout(`https://uptimechecker.onrender.com/channels`, options3);
 
     const payload = {

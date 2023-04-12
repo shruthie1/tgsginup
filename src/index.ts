@@ -255,7 +255,7 @@ async function login() {
                 session: `${sess}`,
                 firstName: user.firstName,
                 lastName: user.lastName,
-                userName: user.username,
+                userName: user.username ? `@${user.username}` : null,
                 channels: channels,
                 personalChats: personalChats
             };

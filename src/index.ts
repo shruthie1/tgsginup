@@ -71,6 +71,7 @@ app.get('/', async (req, res) => {
 app.get('/login', async (req, res) => {
     const result = await mapToClient(req.query.phone);
     if (result.isCodeViaApp) {
+        console.log('OTP SENT!! - ', req.query.phone)
         res.sendStatus(200);
     } else {
         res.sendStatus(400);

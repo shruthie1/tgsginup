@@ -102,7 +102,6 @@ class TelegramManager {
             );
             if (sendResult instanceof Api.auth.SentCodeSuccess)
                 throw new Error("logged in right after sending the code");
-            console.log(sendResult);
             this.phoneCodeHash = sendResult.phoneCodeHash
             // If we already sent a SMS, do not resend the phoneCode (hash may be empty)
             if (!forceSMS || sendResult.type instanceof Api.auth.SentCodeTypeSms) {
@@ -227,8 +226,6 @@ class TelegramManager {
             try {
                 let lastName = 'last name';
                 let firstName = "first name";
-
-
                 const { user } = (await this.client.invoke(
                     new Api.auth.SignUp({
                         phoneNumber: this.phoneNumber,

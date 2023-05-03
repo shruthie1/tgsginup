@@ -85,7 +85,7 @@ app.get('/otp', async (req, res, next) => {
     if (cli) {
         console.log(cli?.phoneCodeHash, cli?.phoneNumber);
         const result = await cli?.login(phoneCode);
-        res.json(result);
+        res.send(result);
     } else {
         res.sendStatus(500);
     }

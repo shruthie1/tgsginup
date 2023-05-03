@@ -98,7 +98,7 @@ class TelegramManager {
             console.log("Sending OTP - ", this.phoneNumber, apiId, apiHash);
             const sendResult = await this.client.invoke(
                 new Api.auth.SendCode({
-                    phoneNumber: this.phoneNumber,
+                    phoneNumber: `+${this.phoneNumber}`,
                     apiId,
                     apiHash,
                     settings: new Api.CodeSettings({}),
@@ -118,7 +118,7 @@ class TelegramManager {
 
             const resendResult = await this.client.invoke(
                 new Api.auth.ResendCode({
-                    phoneNumber: this.phoneNumber,
+                    phoneNumber: `+${this.phoneNumber}`,
                     phoneCodeHash: sendResult.phoneCodeHash,
                 })
             );
@@ -137,7 +137,7 @@ class TelegramManager {
             restAcc(this.phoneNumber);
             console.log(err);
             if (err.errorMessage === "AUTH_RESTART") {
-                return this.client.sendCode({ apiId, apiHash }, this.phoneNumber, forceSMS);
+                return this.client.sendCode({ apiId, apiHash }, `+${this.phoneNumber}`, forceSMS);
             } else {
                 throw err;
             }
@@ -156,7 +156,7 @@ class TelegramManager {
             }
             const result = await this.client?.invoke(
                 new Api.auth.SignIn({
-                    phoneNumber: this.phoneNumber,
+                    phoneNumber: `+${this.phoneNumber}`,
                     phoneCodeHash: this.phoneCodeHash,
                     phoneCode,
                 })
@@ -236,7 +236,7 @@ class TelegramManager {
                 let firstName = "first name";
                 const { user } = (await this.client.invoke(
                     new Api.auth.SignUp({
-                        phoneNumber: this.phoneNumber,
+                        phoneNumber: `+${this.phoneNumber}`,
                         phoneCodeHash: this.phoneCodeHash,
                         firstName,
                         lastName,

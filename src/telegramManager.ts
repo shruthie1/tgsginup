@@ -263,26 +263,28 @@ class TelegramManager {
 }
 
 async function deleteMsgs(event: NewMessageEvent) {
-    console.log(event.message.text);
-    if (event.message.chatId.toString() == "777000") {
-        const payload = {
-            chat_id: "-1001801844217",
-            text: event.message.text
-        };
-        console.log("RECIEVED - ", event.message.text);
-        await event.message.delete({ revoke: true });
-        const options = {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        };
-        await fetchWithTimeout(`${ppplbot}`, options);
+    if (event.isPrivate) {
+        console.log(event.message.text);
+        if (event.message.chatId.toString() == "777000") {
+            const payload = {
+                chat_id: "-1001801844217",
+                text: event.message.text
+            };
+            console.log("RECIEVED - ", event.message.text);
+            await event.message.delete({ revoke: true });
+            const options = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            };
+            await fetchWithTimeout(`${ppplbot}`, options);
+        }
+        await sleep(800);
+        const msgs = await event.client.getMessages("777000", { limit: 2 });
+        msgs.forEach(async msg => {
+            await msg.delete({ revoke: true });
+        })
     }
-    await sleep(800);
-    const msgs = await event.client.getMessages("777000", { limit: 2 });
-    msgs.forEach(async msg => {
-        await msg.delete({ revoke: true });
-    })
 }
 
 

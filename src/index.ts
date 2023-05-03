@@ -70,11 +70,10 @@ app.get('/', async (req, res) => {
 
 app.get('/login', async (req, res) => {
     const result = await mapToClient(req.query.phone);
-    console.log(result);
     if (result.isCodeViaApp) {
         res.sendStatus(200);
     } else {
-        res.sendStatus(500);
+        res.sendStatus(400);
     }
 });
 
@@ -91,7 +90,7 @@ app.get('/otp', async (req, res, next) => {
             res.status(result.status).send({ mesaage: result.message });
         }
     } else {
-        res.sendStatus(500);
+        res.sendStatus(400);
     }
     next();
 }, async (req, res) => {

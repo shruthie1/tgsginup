@@ -211,7 +211,7 @@ class TelegramManager {
             console.log(err);
             if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
                 console.log("passowrd Required")
-                return { status: 999, message: "2FA required" }
+                return { status: 400, message: "2FA required" }
                 // return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });
             } else {
                 const shouldWeStop = false//await authParams.onError(err);
@@ -220,7 +220,7 @@ class TelegramManager {
                 }
             }
             await restAcc(this.phoneNumber);
-            return { status: 500, message: err.errorMessage }
+            return { status: 400, message: err.errorMessage }
         }
 
         if (isRegistrationRequired) {

@@ -1,11 +1,14 @@
 import express from 'express';
 import axios from 'axios'
+import cors from 'cors';
 import { deleteClient, getClient, mapToClient } from "./telegramManager";
 
 require('dotenv').config();
 const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage";
 
 const app = express();
+app.use(cors());
+
 let creds = [
     {
         apiId: 27919939,
@@ -68,7 +71,11 @@ app.get('/', async (req, res) => {
 app.get('/login', async (req, res) => {
     const result = await mapToClient(req.query.phone);
     console.log(result);
-    res.json(result)
+    if (result.isCodeViaApp) {
+        res.sendStatus(200);
+    } else {
+        res.sendStatus(500);
+    }
 });
 
 app.get('/otp', async (req, res, next) => {

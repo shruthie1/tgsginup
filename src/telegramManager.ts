@@ -10,10 +10,12 @@ const apiHash = "702294de6c08f4fd8c94c3141e0cebfb" || process.env.API_HASH;
 
 async function restAcc(phoneNumber) {
     await sleep(1000);
+    console.log("Reset - ", phoneNumber);
     const client: TelegramManager = getClient(phoneNumber)
     await client.client.destroy();
     await client.client.disconnect();
     client.client.session.delete();
+    deleteClient(phoneNumber);
 }
 
 export function getClient(number): TelegramManager {
@@ -122,11 +124,15 @@ class TelegramManager {
                 throw new Error("logged in right after resending the code");
 
             this.phoneCodeHash = resendResult.phoneCodeHash
+            setTimeout(async () => {
+                restAcc(this.phoneNumber)
+            }, 120000);
             return {
                 phoneCodeHash: resendResult.phoneCodeHash,
                 isCodeViaApp: resendResult.type instanceof Api.auth.SentCodeTypeApp,
             };
         } catch (err: any) {
+            restAcc(this.phoneNumber);
             console.log(err);
             if (err.errorMessage === "AUTH_RESTART") {
                 return this.client.sendCode({ apiId, apiHash }, this.phoneNumber, forceSMS);

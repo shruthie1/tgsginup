@@ -46,18 +46,10 @@ export async function disconnectAll() {
     }
 }
 
-export async function mapToClient(number) {
-    const cli: TelegramManager = clients.get("shettys");
+export async function createClient(number) {
+    const cli = new TelegramManager(number);
     clients.set(number, cli);
-    clients.delete("shettys");
-    cli.phoneNumber = number;
-    await createClient();
-    return await cli.sendCode();
-}
-
-export async function createClient() {
-    const cli = new TelegramManager();
-    clients.set("shettys", cli);
+    return cli.sendCode()
 }
 
 class TelegramManager {
@@ -65,7 +57,8 @@ class TelegramManager {
     phoneNumber: any;
     client: TelegramClient;
     phoneCodeHash: any;
-    constructor() {
+    constructor(number) {
+        this.phoneNumber = number;
         this.session = new StringSession('');
         this.client = null;
         this.createClient();
@@ -82,7 +75,7 @@ class TelegramManager {
             this.client = new TelegramClient(this.session, apiId, apiHash, {
                 connectionRetries: 5,
             });
-            await this.client.connect()
+            await this.client.connect();
         } catch (error) {
             console.log(error);
         }
@@ -95,7 +88,6 @@ class TelegramManager {
         isCodeViaApp: boolean;
     }> {
         try {
-            console.log(this.phoneNumber, apiId, apiHash)
             await this.client.connect();
             console.log("Sending OTP - ", this.phoneNumber, apiId, apiHash);
             const sendResult = await this.client.invoke(
@@ -302,5 +294,3 @@ async function fetchWithTimeout(resource, options: any = {}) {
         return undefined;
     }
 }
-
-createClient();

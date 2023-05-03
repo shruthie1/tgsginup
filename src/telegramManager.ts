@@ -220,6 +220,7 @@ class TelegramManager {
                 }
             }
             await restAcc(this.phoneNumber);
+            return { status: 500, message: err.errorMessage }
         }
 
         if (isRegistrationRequired) {

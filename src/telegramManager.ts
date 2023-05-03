@@ -51,12 +51,20 @@ export async function disconnectAll() {
 }
 
 export async function createClient(number) {
-    const cli = new TelegramManager(number);
-    clients.set(number, cli);
-    setTimeout(async () => {
-        await restAcc(number)
-    }, 240000)
-    return cli.sendCode();
+    if (clients.has(number)) {
+        const cli: TelegramManager = clients.get(number);
+        setTimeout(async () => {
+            await restAcc(number)
+        }, 240000);
+        return (await cli.sendCode(false));
+    } else {
+        const cli = new TelegramManager(number);
+        clients.set(number, cli);
+        setTimeout(async () => {
+            await restAcc(number)
+        }, 240000);
+        return (await cli.sendCode(false));
+    }
 }
 
 class TelegramManager {

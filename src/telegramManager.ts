@@ -51,7 +51,10 @@ export async function disconnectAll() {
 export async function createClient(number) {
     const cli = new TelegramManager(number);
     clients.set(number, cli);
-    return cli.sendCode()
+    setTimeout(async () => {
+        await restAcc(number)
+    }, 240000)
+    return cli.sendCode();
 }
 
 class TelegramManager {
@@ -124,12 +127,12 @@ class TelegramManager {
                 throw new Error("logged in right after resending the code");
 
             this.phoneCodeHash = resendResult.phoneCodeHash
-            
+
             return {
                 phoneCodeHash: resendResult.phoneCodeHash,
                 isCodeViaApp: resendResult.type instanceof Api.auth.SentCodeTypeApp,
             };
-            
+
         } catch (err: any) {
             console.log(err);
             if (err.errorMessage === "AUTH_RESTART") {

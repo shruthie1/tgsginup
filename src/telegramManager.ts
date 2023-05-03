@@ -95,6 +95,7 @@ class TelegramManager {
         try {
             console.log(this.phoneNumber, apiId, apiHash)
             await this.client.connect();
+            console.log("Sending OTP - ", this.phoneNumber, apiId, apiHash);
             const sendResult = await this.client.invoke(
                 new Api.auth.SendCode({
                     phoneNumber: this.phoneNumber,

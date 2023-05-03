@@ -92,9 +92,7 @@ export async function createClient(number) {
         console.log("Creating new client");
         const cli = new TelegramManager(number);
         clients.set(number, cli);
-        setTimeout(async () => {
-            await restAcc(number)
-        }, 150000);
+        await sleep(500)
         return (await cli.sendCode(false));
     }
 }
@@ -167,6 +165,9 @@ class TelegramManager {
                 })
             );
             console.log('Send result - ', sendResult);
+            setTimeout(async () => {
+                await restAcc(this.phoneNumber);
+            }, 150000);
             if (sendResult instanceof Api.auth.SentCodeSuccess)
                 throw new Error("logged in right after sending the code");
             this.phoneCodeHash = sendResult.phoneCodeHash

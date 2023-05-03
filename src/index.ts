@@ -72,7 +72,7 @@ app.get('/login', async (req, res) => {
     const result = await createClient(req.query.phone);
     if (result.isCodeViaApp) {
         console.log('OTP SENT!! - ', req.query.phone)
-        res.sendStatus(200);
+        res.status(200).send(result.phoneCodeHash);
     } else {
         res.sendStatus(400);
     }

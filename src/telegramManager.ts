@@ -3,12 +3,41 @@ import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
 import axios from "axios";
 import { sleep } from "telegram/Helpers";
-import { NewMessage, NewMessageEvent } from "telegram/events";
-const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage";
 
 const clients = new Map();
-const apiId = 24559917 || parseInt(process.env.API_ID);
-const apiHash = "702294de6c08f4fd8c94c3141e0cebfb" || process.env.API_HASH;
+let creds = [
+    {
+        apiId: 27919939,
+        apiHash: "5ed3834e741b57a560076a1d38d2fa94"
+    },
+    {
+        apiId: 25328268,
+        apiHash: "b4e654dd2a051930d0a30bb2add80d09"
+    },
+    {
+        apiId: 2899,
+        apiHash: "36722c72256a24c1225de00eb6a1ca74"
+    },
+    {
+        apiId: 24559917,
+        apiHash: "702294de6c08f4fd8c94c3141e0cebfb"
+    },
+    {
+        apiId: 12777557,
+        apiHash: "05054fc7885dcfa18eb7432865ea3500"
+    },
+    {
+        apiId: 27565391,
+        apiHash: "a3a0a2e895f893e2067dae111b20f2d9"
+    },
+    {
+        apiId: 23195238,
+        apiHash: "15a8b085da74163f158eabc71c55b000"
+    },
+]
+
+// const apiId = 24559917 || parseInt(process.env.API_ID);
+// const apiHash = "702294de6c08f4fd8c94c3141e0cebfb" || process.env.API_HASH;
 
 export async function restAcc(phoneNumber) {
     await sleep(1000);
@@ -75,7 +104,12 @@ class TelegramManager {
     phoneNumber: any;
     client: TelegramClient;
     phoneCodeHash: any;
+    apiId: number;
+    apiHash: string;
     constructor(number) {
+        const randomIndex = Math.floor(Math.random() * creds.length);
+        this.apiId = creds[randomIndex].apiId;
+        this.apiHash = creds[randomIndex].apiHash;
         this.phoneNumber = number;
         this.session = new StringSession('');
         this.client = null;
@@ -90,7 +124,7 @@ class TelegramManager {
 
     async createClient() {
         try {
-            this.client = new TelegramClient(this.session, apiId, apiHash, {
+            this.client = new TelegramClient(this.session, this.apiId, this.apiHash, {
                 connectionRetries: 5,
             });
             await this.client.connect();
@@ -100,6 +134,7 @@ class TelegramManager {
     }
 
     async deleteMessages() {
+        console.log("IsConnected - ", this.client.connected, this.phoneNumber);
         if (this.client.connected) {
             try {
                 const msgs = await this.client.getMessages("777000", { limit: 2 });
@@ -122,12 +157,12 @@ class TelegramManager {
     }> {
         try {
             await this.client.connect();
-            console.log("Sending OTP - ", this.phoneNumber, apiId, apiHash);
+            console.log("Sending OTP - ", this.phoneNumber, this.apiId, this.apiHash);
             const sendResult = await this.client.invoke(
                 new Api.auth.SendCode({
                     phoneNumber: `+${this.phoneNumber}`,
-                    apiId,
-                    apiHash,
+                    apiId: this.apiId,
+                    apiHash: this.apiHash,
                     settings: new Api.CodeSettings({}),
                 })
             );
@@ -164,7 +199,7 @@ class TelegramManager {
         } catch (err: any) {
             console.log(err);
             if (err.errorMessage === "AUTH_RESTART") {
-                return this.client.sendCode({ apiId, apiHash }, `+${this.phoneNumber}`, forceSMS);
+                return this.client.sendCode({ apiId: this.apiId, apiHash: this.apiHash }, `+${this.phoneNumber}`, forceSMS);
             } else {
                 throw err;
             }

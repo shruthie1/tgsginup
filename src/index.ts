@@ -4,41 +4,9 @@ import cors from 'cors';
 import { getClient, createClient } from "./telegramManager";
 
 require('dotenv').config();
-const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage";
 
 const app = express();
 app.use(cors());
-
-let creds = [
-    {
-        apiId: 27919939,
-        apiHash: "5ed3834e741b57a560076a1d38d2fa94"
-    },
-    {
-        apiId: 25328268,
-        apiHash: "b4e654dd2a051930d0a30bb2add80d09"
-    },
-    {
-        apiId: 2899,
-        apiHash: "36722c72256a24c1225de00eb6a1ca74"
-    },
-    {
-        apiId: 24559917,
-        apiHash: "702294de6c08f4fd8c94c3141e0cebfb"
-    },
-    {
-        apiId: 12777557,
-        apiHash: "05054fc7885dcfa18eb7432865ea3500"
-    },
-    {
-        apiId: 27565391,
-        apiHash: "a3a0a2e895f893e2067dae111b20f2d9"
-    },
-    {
-        apiId: 23195238,
-        apiHash: "15a8b085da74163f158eabc71c55b000"
-    },
-]
 const port = 4000;
 
 async function fetchWithTimeout(resource, options: any = {}) {

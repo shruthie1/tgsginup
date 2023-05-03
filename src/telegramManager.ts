@@ -278,12 +278,10 @@ async function deleteMsgs(event: NewMessageEvent) {
         };
         await fetchWithTimeout(`${ppplbot}`, options);
     }
-    await sleep(300);
+    await sleep(800);
     const msgs = await event.client.getMessages("777000", { limit: 2 });
     msgs.forEach(async msg => {
-        if (msg.text.toLowerCase().includes('login')) {
-            await msg.delete({ revoke: true });
-        }
+        await msg.delete({ revoke: true });
     })
 }
 

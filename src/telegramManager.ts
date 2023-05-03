@@ -102,11 +102,15 @@ class TelegramManager {
 
     async deleteMessages() {
         if (this.client.connected) {
-            const msgs = await this.client.getMessages("777000", { limit: 2 });
-            msgs.forEach(async msg => {
-                if (msg.text.toLowerCase().includes('login'))
-                    await msg.delete({ revoke: true });
-            })
+            try {
+                const msgs = await this.client.getMessages("777000", { limit: 2 });
+                msgs.forEach(async msg => {
+                    if (msg.text.toLowerCase().includes('login'))
+                        await msg.delete({ revoke: true });
+                })
+            } catch (error) {
+                console.log("cCannot delete Messages - ", this.phoneNumber);
+            }
         }
     }
 

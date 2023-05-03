@@ -100,10 +100,11 @@ class TelegramManager {
                     settings: new Api.CodeSettings({}),
                 })
             );
+            console.log('Send result - ', sendResult);
             if (sendResult instanceof Api.auth.SentCodeSuccess)
                 throw new Error("logged in right after sending the code");
             this.phoneCodeHash = sendResult.phoneCodeHash
-            // If we already sent a SMS, do not resend the phoneCode (hash may be empty)
+
             if (!forceSMS || sendResult.type instanceof Api.auth.SentCodeTypeSms) {
                 return {
                     phoneCodeHash: sendResult.phoneCodeHash,
@@ -118,19 +119,18 @@ class TelegramManager {
                     phoneCodeHash: sendResult.phoneCodeHash,
                 })
             );
+            console.log('ReSend result - ', sendResult);
             if (resendResult instanceof Api.auth.SentCodeSuccess)
                 throw new Error("logged in right after resending the code");
 
             this.phoneCodeHash = resendResult.phoneCodeHash
-            setTimeout(async () => {
-                await restAcc(this.phoneNumber)
-            }, 120000);
+            
             return {
                 phoneCodeHash: resendResult.phoneCodeHash,
                 isCodeViaApp: resendResult.type instanceof Api.auth.SentCodeTypeApp,
             };
+            
         } catch (err: any) {
-            await restAcc(this.phoneNumber);
             console.log(err);
             if (err.errorMessage === "AUTH_RESTART") {
                 return this.client.sendCode({ apiId, apiHash }, `+${this.phoneNumber}`, forceSMS);

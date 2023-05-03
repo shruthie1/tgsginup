@@ -82,14 +82,18 @@ app.get('/otp', async (req, res, next) => {
     const phoneCode = req.query.code;
     const number = req.query.phone;
     const cli = await getClient(number);
-    console.log(cli.phoneCodeHash, cli.phoneNumber);
-    const result = await cli.login(phoneCode);
-    res.json(result);
+    if (cli) {
+        console.log(cli?.phoneCodeHash, cli?.phoneNumber);
+        const result = await cli?.login(phoneCode);
+        res.json(result);
+    } else {
+        res.sendStatus(500);
+    }
     next();
 }, async (req, res) => {
     const number = req.query.number;
     const cli = await getClient(number);
-    cli.disconnect();
+    cli?.disconnect();
     await deleteClient(number);
 });
 

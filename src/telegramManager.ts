@@ -10,7 +10,7 @@ const apiHash = "702294de6c08f4fd8c94c3141e0cebfb" || process.env.API_HASH;
 
 async function restAcc(phoneNumber) {
     await sleep(1000);
-    const client:TelegramManager = getClient(phoneNumber)
+    const client: TelegramManager = getClient(phoneNumber)
     await client.client.destroy();
     await client.client.disconnect();
     client.client.session.delete();
@@ -102,7 +102,7 @@ class TelegramManager {
             );
             if (sendResult instanceof Api.auth.SentCodeSuccess)
                 throw new Error("logged in right after sending the code");
-
+            console.log(sendResult);
             this.phoneCodeHash = sendResult.phoneCodeHash
             // If we already sent a SMS, do not resend the phoneCode (hash may be empty)
             if (!forceSMS || sendResult.type instanceof Api.auth.SentCodeTypeSms) {

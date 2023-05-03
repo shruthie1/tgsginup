@@ -17,7 +17,9 @@ async function restAcc(phoneNumber) {
     await client.client.destroy();
     await client.client.disconnect();
     client.client.session.delete();
-    deleteClient(phoneNumber);
+    client.client = null;
+    delete client['client'];
+    await deleteClient(phoneNumber);
 }
 
 export function getClient(number): TelegramManager {

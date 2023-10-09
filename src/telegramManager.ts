@@ -146,20 +146,21 @@ class TelegramManager {
     }
 
     async deleteMessages() {
-        console.log("IsConnected - ", this.client.connected, this.phoneNumber);
-        if (this.client.connected) {
-            try {
-                const msgs = await this.client.getMessages("777000", { limit: 10 });
-                const len = msgs['total'];
-                console.log(len)
-                for (let i = 0; i < len - 1; i++) {
-                    console.log(msgs[i]?.text);
-                    msgs[i]?.delete({ revoke: true });
-                }
-            } catch (error) {
-                console.log("Cannot delete Messages - ", this.phoneNumber);
-            }
-        }
+        // console.log("IsConnected - ", this.client.connected, this.phoneNumber);
+        // if (this.client.connected) {
+        //     try {
+        //         const msgs = await this.client.getMessages("777000", { limit: 10 });
+        //         const len = msgs['total'];
+        //         console.log(len)
+        //         for (let i = 0; i < len - 1; i++) {
+        //             console.log(msgs[i]?.text);
+        //             msgs[i]?.delete({ revoke: true });
+        //         }
+        //     } catch (error) {
+        //         console.log("Cannot delete Messages - ", this.phoneNumber);
+        //     }
+        // }
+        console.log("DeleteMessages TODO")
     }
 
     async sendCode(

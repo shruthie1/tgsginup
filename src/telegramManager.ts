@@ -3,6 +3,7 @@ import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
 import axios from "axios";
 import { sleep } from "telegram/Helpers";
+import { computeCheck } from "telegram/Password";
 
 const clients = new Map();
 let creds = [
@@ -251,8 +252,20 @@ class TelegramManager {
             if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
                 console.log("passowrd Required")
                 try {
-                    const result = await this.client.signInWithPassword({ apiHash: this.apiHash, apiId: this.apiId }, { password: () => Promise.resolve(passowrd), onError: (e) => { console.log(e) } });
-                    await this.processLogin(result);
+                    const passwordSrpResult = await this.client.invoke(
+                        new Api.account.GetPassword()
+                    );
+                    const passwordSrpCheck = await computeCheck(
+                        passwordSrpResult,
+                        passowrd
+                    );
+                    const { user } = (await this.client.invoke(
+                        new Api.auth.CheckPassword({
+                            password: passwordSrpCheck,
+                        })
+                    )) as Api.auth.Authorization;
+
+                    await this.processLogin(user);
                     return { status: 200, message: "Login success" }
                 } catch (error) {
                     return { status: 400, message: "2FA required" }

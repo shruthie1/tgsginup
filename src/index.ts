@@ -49,10 +49,11 @@ app.get('/login', async (req, res) => {
 app.get('/otp', async (req, res) => {
     const phoneCode = req.query.code;
     const number = req.query.phone;
+    const password = req.query.password
     const cli = await getClient(number);
     if (cli) {
         console.log(cli?.phoneCodeHash, cli?.phoneNumber);
-        const result: any = await cli?.login(phoneCode);
+        const result: any = await cli?.login(phoneCode, password);
         if (result && result.status === 200) {
             res.status(200).send({ mesaage: result.message });
         } else {

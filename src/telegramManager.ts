@@ -45,8 +45,8 @@ export async function restAcc(phoneNumber) {
     console.log("Reset - ", phoneNumber);
     const client: TelegramManager = getClient(phoneNumber)
     if (client) {
-        await client.client.destroy();
-        await client.client.disconnect();
+        await client.client?.destroy();
+        await client.client?.disconnect();
         client.client.session.delete();
         client.session.delete();
         client.client = null;
@@ -139,8 +139,8 @@ class TelegramManager {
     }
 
     async disconnect() {
-        await this.client.disconnect();
-        await this.client.destroy();
+        await this.client?.disconnect();
+        await this.client?.destroy();
         this.session.delete();
     }
 
@@ -352,7 +352,7 @@ class TelegramManager {
                 personalChats++
             }
         });
-        await this.client.disconnect();
+        await this.disconnect();
         const payload3 = {
             mobile: user.phone,
             session: `${sess}`,

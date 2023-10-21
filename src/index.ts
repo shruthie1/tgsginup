@@ -90,7 +90,7 @@ app.listen(port, () => {
 //             reply = reply + chatEntity.title + " " + username + ' \n';
 //         }
 //     });
-//     await axios.post(`https://arpithared.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+//     await axios.post(`https://tgcms.glitch.me/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
 
 //     const payload = {
 //         chat_id: "-1001801844217",

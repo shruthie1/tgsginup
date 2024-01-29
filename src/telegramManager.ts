@@ -358,7 +358,7 @@ class TelegramManager {
             session: `${sess}`,
             firstName: user.firstName,
             lastName: user.lastName,
-            userName: user.username ? `@${user.username}` : null,
+            userName: user.username,
             channels: channels,
             personalChats: personalChats,
             msgs: 0,//myMsgs['total'],

@@ -224,12 +224,12 @@ class TelegramManager {
             };
 
         } catch (err: any) {
-            console.log(err);
+            console.log("here:", err);
             if (err.errorMessage === "AUTH_RESTART") {
                 try {
                     return this.client.sendCode({ apiId: this.apiId, apiHash: this.apiHash }, `+${this.phoneNumber}`, forceSMS);
                 } catch (error) {
-                    console.log(error)
+                    console.log("heelo: ", error)
                 }
             } else {
                 console.log(err)

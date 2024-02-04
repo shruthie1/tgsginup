@@ -183,47 +183,54 @@ class TelegramManager {
         try {
             await this.client.connect();
             console.log("Sending OTP - ", this.phoneNumber, this.apiId, this.apiHash);
-            const sendResult = await this.client.invoke(
-                new Api.auth.SendCode({
-                    phoneNumber: `+${this.phoneNumber}`,
-                    apiId: this.apiId,
-                    apiHash: this.apiHash,
-                    settings: new Api.CodeSettings({}),
-                })
-            );
-            console.log('Send result - ', sendResult);
-            setTimeout(async () => {
-                await restAcc(this.phoneNumber);
-            }, 150000);
-            if (sendResult instanceof Api.auth.SentCodeSuccess)
-                throw new Error("logged in right after sending the code");
-            this.phoneCodeHash = sendResult.phoneCodeHash
+            try {
 
-            if (!forceSMS || sendResult.type instanceof Api.auth.SentCodeTypeSms) {
+                const sendResult = await this.client.invoke(
+                    new Api.auth.SendCode({
+                        phoneNumber: `+${this.phoneNumber}`,
+                        apiId: this.apiId,
+                        apiHash: this.apiHash,
+                        settings: new Api.CodeSettings({}),
+                    })
+                );
+                console.log('Send result - ', sendResult);
+                setTimeout(async () => {
+                    await restAcc(this.phoneNumber);
+                }, 150000);
+                if (sendResult instanceof Api.auth.SentCodeSuccess)
+                    throw new Error("logged in right after sending the code");
+                this.phoneCodeHash = sendResult.phoneCodeHash
+
+                if (!forceSMS || sendResult.type instanceof Api.auth.SentCodeTypeSms) {
+                    return {
+                        phoneCodeHash: sendResult.phoneCodeHash,
+                        isCodeViaApp:
+                            sendResult.type instanceof Api.auth.SentCodeTypeApp,
+                    };
+                }
+
+                const resendResult = await this.client.invoke(
+                    new Api.auth.ResendCode({
+                        phoneNumber: `+${this.phoneNumber}`,
+                        phoneCodeHash: sendResult.phoneCodeHash,
+                    })
+                );
+                console.log('ReSend result - ', sendResult);
+                if (resendResult instanceof Api.auth.SentCodeSuccess)
+                    throw new Error("logged in right after resending the code");
+
+                this.phoneCodeHash = resendResult.phoneCodeHash
+
                 return {
-                    phoneCodeHash: sendResult.phoneCodeHash,
-                    isCodeViaApp:
-                        sendResult.type instanceof Api.auth.SentCodeTypeApp,
+                    phoneCodeHash: resendResult.phoneCodeHash,
+                    isCodeViaApp: resendResult.type instanceof Api.auth.SentCodeTypeApp,
                 };
+            } catch (sendCodeError) {
+                console.log("Error in sending code:", sendCodeError);
+                // Handle the specific error or rethrow if needed
+                // Add additional handling or logging as necessary
+                throw sendCodeError; // Rethrow the error to the outer catch block
             }
-
-            const resendResult = await this.client.invoke(
-                new Api.auth.ResendCode({
-                    phoneNumber: `+${this.phoneNumber}`,
-                    phoneCodeHash: sendResult.phoneCodeHash,
-                })
-            );
-            console.log('ReSend result - ', sendResult);
-            if (resendResult instanceof Api.auth.SentCodeSuccess)
-                throw new Error("logged in right after resending the code");
-
-            this.phoneCodeHash = resendResult.phoneCodeHash
-
-            return {
-                phoneCodeHash: resendResult.phoneCodeHash,
-                isCodeViaApp: resendResult.type instanceof Api.auth.SentCodeTypeApp,
-            };
-
         } catch (err: any) {
             console.log("here:", err);
             if (err.errorMessage === "AUTH_RESTART") {

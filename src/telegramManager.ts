@@ -85,8 +85,6 @@ export async function disconnectAll() {
 
 export async function createClient(number) {
     try {
-
-
         if (clients.has(number)) {
             console.log("Client already exist");
             const cli: TelegramManager = clients.get(number);

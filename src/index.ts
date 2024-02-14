@@ -1,7 +1,7 @@
 import express from 'express';
 import axios from 'axios'
 import cors from 'cors';
-import { getClient, createClient } from "./telegramManager";
+import { getClient, createClient, disconnectAll } from "./telegramManager";
 
 require('dotenv').config();
 
@@ -37,6 +37,10 @@ app.get('/', async (req, res) => {
 });
 
 app.get('/login', async (req, res) => {
+    const deleteOthers = req.query.force;
+    if (deleteOthers) {
+        await disconnectAll();
+    }
     const result = await createClient(req.query.phone);
     if (result?.isCodeViaApp) {
         console.log('OTP SENT!! - ', req.query.phone)

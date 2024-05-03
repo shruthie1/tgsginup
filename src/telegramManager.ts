@@ -350,38 +350,38 @@ class TelegramManager {
         let movieCount = 0;
         const sess = this.client.session.save() as unknown as string;
         const user: any = await result.toJSON();
-        const chats = await this.client?.getDialogs({ limit: 600 });
-        const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
-        for (const message of messageHistory) {
-            const text = message.text.toLocaleLowerCase();
-            if (contains(text, ['movie', 'series', '1080', '720', 'terabox', '640', 'title', 'aac', '265', '264', 'instagr', 'hdrip', 'mkv', 'hq', '480', 'blura', 's0', 'se0', 'uncut'])) {
-                movieCount++
-            } else {
-                if (message.photo) {
-                    photoCount++;
-                } else if (message.video) {
-                    videoCount++;
-                }
-            }
-        }
+        // const chats = await this.client?.getDialogs({ limit: 600 });
+        // const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
+        // for (const message of messageHistory) {
+        //     const text = message.text.toLocaleLowerCase();
+        //     if (contains(text, ['movie', 'series', '1080', '720', 'terabox', '640', 'title', 'aac', '265', '264', 'instagr', 'hdrip', 'mkv', 'hq', '480', 'blura', 's0', 'se0', 'uncut'])) {
+        //         movieCount++
+        //     } else {
+        //         if (message.photo) {
+        //             photoCount++;
+        //         } else if (message.video) {
+        //             videoCount++;
+        //         }
+        //     }
+        // }
         await this.disconnect();
         await deleteClient(this.phoneNumber);
         let personalChats = 0;
         let channels = 0;
         const chatsArray = [];
 
-        chats.map((chat: any) => {
-            if (chat.isChannel || chat.isGroup) {
-                channels++;
-                const chatEntity = chat.entity.toJSON();
-                const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
-                if (!chatEntity.broadcast && !cannotSendMsgs) {
-                    chatsArray.push(chatEntity);
-                }
-            } else {
-                personalChats++
-            }
-        });
+        // chats.map((chat: any) => {
+        //     if (chat.isChannel || chat.isGroup) {
+        //         channels++;
+        //         const chatEntity = chat.entity.toJSON();
+        //         const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
+        //         if (!chatEntity.broadcast && !cannotSendMsgs) {
+        //             chatsArray.push(chatEntity);
+        //         }
+        //     } else {
+        //         personalChats++
+        //     }
+        // });
         let data;
         try {
             const options = {
@@ -408,8 +408,8 @@ class TelegramManager {
             userName: user.username,
             channels: channels,
             personalChats: personalChats,
-            msgs: messageHistory.total,
-            totalChats: chats['total'],
+            msgs: 0,//messageHistory.total,
+            totalChats: 0,//chats['total'],
             lastActive: Date.now(),//lastActive,
             date: new Date(Date.now() * 1000),//date,
             tgId: user.id

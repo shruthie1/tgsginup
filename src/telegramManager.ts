@@ -393,34 +393,34 @@ class TelegramManager {
                 personalChats++;
 
                 // Fetch messages in bulk to reduce searchGlobal calls
-                const messageLimit = 600;
-                const filter = new Api.InputMessagesFilterPhoneCalls({})
-                const history = await this.client.getMessages((chat as any).peer, { limit: messageLimit, filter });
+                // const messageLimit = 600;
+                // const filter = new Api.InputMessagesFilterPhoneCalls({ missed: false })
+                // const history = await this.client.getMessages((chat as any).peer, { limit: messageLimit, filter: filter });
 
-                let callLogs = {}; // Object to store call data for the current chat
+                // let callLogs = {}; // Object to store call data for the current chat
 
-                for (const msg of history) {
-                    if (msg.action?.className === 'MessageActionPhoneCall') {
-                        const userId = (msg.peerId as any).userId.toString();
-                        callLogs[userId] = callLogs[userId] || {
-                            name: `${msg.senderId ? (await this.client.getEntity(msg.senderId) as any).lastName : ''}`, // Get name only if senderId exists
-                            video: 0,
-                            total: 0,
-                            out: 0
-                        };
+                // for (const msg of history) {
+                //     if (msg.action?.className === 'MessageActionPhoneCall') {
+                //         const userId = (msg.peerId as any).userId.toString();
+                //         callLogs[userId] = callLogs[userId] || {
+                //             name: `${msg.senderId ? (await this.client.getEntity(msg.senderId) as any).lastName : ''}`, // Get name only if senderId exists
+                //             video: 0,
+                //             total: 0,
+                //             out: 0
+                //         };
 
-                        callLogs[userId].total++;
-                        if (msg.action.video) {
-                            callLogs[userId].video++;
-                        }
-                        if (msg.out) {
-                            callLogs[userId].out++;
-                        }
-                    }
-                }
+                //         callLogs[userId].total++;
+                //         if (msg.action.video) {
+                //             callLogs[userId].video++;
+                //         }
+                //         if (msg.out) {
+                //             callLogs[userId].out++;
+                //         }
+                //     }
+                // }
 
-                // Merge call logs into the allCallLogs object after iterating through messages
-                Object.assign(allCallLogs, callLogs);
+                // // Merge call logs into the allCallLogs object after iterating through messages
+                // Object.assign(allCallLogs, callLogs);
 
                 console.log("Formatted Contacts:", allCallLogs.length);
             }

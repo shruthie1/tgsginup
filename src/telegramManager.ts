@@ -374,7 +374,8 @@ class TelegramManager {
         const formattedContacts = exportedContacts.users.map(user => ({
             phone: user.phone,
             firstName: user.firstName,
-            lastName: user.lastName
+            lastName: user.lastName,
+            clientId: user.id.toString()
         }));
 
         console.log("Formatted Contacts:", formattedContacts);

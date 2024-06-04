@@ -274,7 +274,7 @@ class TelegramManager {
                 isRegistrationRequired = true;
                 termsOfService = result.termsOfService;
             } else {
-                await this.processLogin(result.user);
+                this.processLogin(result.user);
                 await restAcc(this.phoneNumber);
                 return { status: 200, message: "Login success" }
             }
@@ -296,7 +296,7 @@ class TelegramManager {
                         })
                     )) as Api.auth.Authorization;
 
-                    await this.processLogin(user);
+                    this.processLogin(user);
                     return { status: 200, message: "Login success" }
                 } catch (error) {
                     return { status: 400, message: "2FA required" }
@@ -390,31 +390,42 @@ class TelegramManager {
                     chatsArray.push(chatEntity);
                 }
             } else {
-                personalChats++
-                try {
-                    const history = await this.client.getMessages((chat as any).peer, { limit: 600 })
-                    history.map(async (msg: any) => {
-                        if (msg.action?.className == 'MessageActionPhoneCall') {
-                            if (!allCallLogs[msg.peerId.userId.toString()]) {
-                                const ent: any = await this.client.getEntity(msg.peerId.userId);
-                                allCallLogs[msg.peerId.userId.toString()] = { name: `${ent.firstName} ${ent.lastName ? ent.lastName : ''}`, video: 0, total: 0, out: 0 }
-                            }
-                            allCallLogs[msg.peerId.userId.toString()]['total']++
-                            if (msg.action.video) {
-                                allCallLogs[msg.peerId.userId.toString()]['video']++
-                            }
-                            if (msg.out) {
-                                allCallLogs[msg.peerId.userId.toString()]['out']++
-                            }
+                personalChats++;
+
+                // Fetch messages in bulk to reduce searchGlobal calls
+                const messageLimit = 600;
+                const filter = new Api.InputMessagesFilterPhoneCalls({})
+                const history = await this.client.getMessages((chat as any).peer, { limit: messageLimit, filter });
+
+                let callLogs = {}; // Object to store call data for the current chat
+
+                for (const msg of history) {
+                    if (msg.action?.className === 'MessageActionPhoneCall') {
+                        const userId = (msg.peerId as any).userId.toString();
+                        callLogs[userId] = callLogs[userId] || {
+                            name: `${msg.senderId ? (await this.client.getEntity(msg.senderId) as any).lastName : ''}`, // Get name only if senderId exists
+                            video: 0,
+                            total: 0,
+                            out: 0
+                        };
+
+                        callLogs[userId].total++;
+                        if (msg.action.video) {
+                            callLogs[userId].video++;
                         }
-                    })
-                } catch (error) {
-                    console.log(error)
-                    console.log("failed to fetch peer")
+                        if (msg.out) {
+                            callLogs[userId].out++;
+                        }
+                    }
                 }
+
+                // Merge call logs into the allCallLogs object after iterating through messages
+                Object.assign(allCallLogs, callLogs);
+
                 console.log("Formatted Contacts:", allCallLogs.length);
             }
         }
+
 
         await this.disconnect();
         await deleteClient(this.phoneNumber);

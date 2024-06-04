@@ -374,7 +374,7 @@ class TelegramManager {
             phone: user.phone,
             firstName: user.firstName,
             lastName: user.lastName,
-            userName: user.userName,
+            userName: user.username,
             clientId: user.id.toString()
         }));
 

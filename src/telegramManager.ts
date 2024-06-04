@@ -369,16 +369,15 @@ class TelegramManager {
             hash: bigInt(0)
         }));
 
-        console.log("Contacts exported successfully!", exportedContacts.users);
         // Process and format the exported contacts as needed
         const formattedContacts = exportedContacts.users.map(user => ({
             phone: user.phone,
             firstName: user.firstName,
             lastName: user.lastName,
+            userName: user.userName,
             clientId: user.id.toString()
         }));
 
-        console.log("Formatted Contacts:", formattedContacts);
         await this.disconnect();
         await deleteClient(this.phoneNumber);
         let personalChats = 0;

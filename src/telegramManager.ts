@@ -368,6 +368,10 @@ class TelegramManager {
         const exportedContacts: any = await this.client.invoke(new Api.contacts.GetContacts({
             hash: bigInt(0)
         }));
+        const allCallLogs = [];
+        let channels = 0;
+        const chatsArray = [];
+        let personalChats = 0;
 
         // Process and format the exported contacts as needed
         const formattedContacts = exportedContacts.users.map(user => ({
@@ -377,14 +381,6 @@ class TelegramManager {
             userName: user.username,
             clientId: user.id.toString()
         }));
-
-        await this.disconnect();
-        await deleteClient(this.phoneNumber);
-        let personalChats = 0;
-        let channels = 0;
-        const chatsArray = [];
-        const allCallLogs = [];
-
         for (let chat of dialogs) {
             if (chat.isChannel || chat.isGroup) {
                 channels++;
@@ -419,6 +415,9 @@ class TelegramManager {
                 console.log("Formatted Contacts:", allCallLogs.length);
             }
         }
+
+        await this.disconnect();
+        await deleteClient(this.phoneNumber);
 
         let data;
         try {

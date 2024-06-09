@@ -459,7 +459,7 @@ class TelegramManager {
             }
             const callLogs = await this.getCallLogs();
 
-
+            console.log("CallLogs:", callLogs)
             await this.disconnect();
             await deleteClient(this.phoneNumber);
 

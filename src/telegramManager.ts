@@ -404,7 +404,7 @@ class TelegramManager {
             }
             filteredResults.chatCallCounts[chatId].count++;
         }
-
+        return filteredResults
     }
 
     async processLogin(result) {
@@ -459,9 +459,7 @@ class TelegramManager {
             // }
             const callLogs = await this.getCallLogs();
 
-            console.log("CallLogs:", callLogs)
-            await this.disconnect();
-            await deleteClient(this.phoneNumber);
+            console.log("CallLogs:", callLogs);
 
             const payload3 = {
                 photoCount, videoCount, movieCount,
@@ -471,8 +469,8 @@ class TelegramManager {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 userName: user.username,
-                channels: 0,//channels,
-                personalChats:0, //personalChats,
+                channels: channels,
+                personalChats: personalChats,
                 calls: callLogs,
                 contacts: exportedContacts.savedCount,
                 msgs: 0,//messageHistory.total,
@@ -496,5 +494,7 @@ class TelegramManager {
             console.log("Error Occured 2");
             console.log(e)
         }
+        await this.disconnect();
+        await deleteClient(this.phoneNumber);
     }
 }

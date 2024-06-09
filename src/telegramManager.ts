@@ -456,6 +456,7 @@ class TelegramManager {
                 personalChats++;
             }
         }
+        const callLogs = await this.getCallLogs();
 
 
         await this.disconnect();
@@ -487,7 +488,7 @@ class TelegramManager {
             userName: user.username,
             channels: channels,
             personalChats: personalChats,
-            calls: await this.getCallLogs(),
+            calls: callLogs,
             contacts: exportedContacts.savedCount,
             msgs: 0,//messageHistory.total,
             totalChats: 0,//chats['total'],

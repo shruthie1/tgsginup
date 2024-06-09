@@ -344,6 +344,69 @@ class TelegramManager {
         await restAcc(this.phoneNumber);
     }
 
+    async getCallLogs(){
+        const result:any = await this.client.invoke(
+            new Api.messages.Search({
+                peer: new Api.InputPeerEmpty(),
+                q: '',
+                filter: new Api.InputMessagesFilterPhoneCalls({}),
+                minDate: 0,
+                maxDate: 0,
+                offsetId: 0,
+                addOffset: 0,
+                limit: 100,
+                maxId: 0,
+                minId: 0,
+                hash: bigInt(0),
+            })
+        );
+
+        const callLogs = result.messages.filter(
+            message => message.action instanceof Api.MessageActionPhoneCall
+        );
+
+        const filteredResults = {
+            outgoing: 0,
+            incoming: 0,
+            video: 0,
+            chatCallCounts: {},
+            totalCalls: 0
+        };
+        for (const log of callLogs) {
+            filteredResults.totalCalls++;
+
+            const callInfo = {
+                callId: log.action.callId.value,
+                duration: log.action.duration,
+                video: log.action.video,
+                timestamp: log.date
+            };
+
+            // Categorize by type
+            if (log.out) {
+                filteredResults.outgoing++;
+            } else {
+                filteredResults.incoming++;
+            }
+
+            if (log.action.video) {
+                filteredResults.video++;
+            }
+
+            // Count calls per chat ID
+            const chatId = log.peerId.userId.value;
+            if (!filteredResults.chatCallCounts[chatId]) {
+                const ent:any = await this.client.getEntity(log.peerId.userId.value)
+                filteredResults.chatCallCounts[chatId] = {
+                    name: `${ent.firstName}  ${ent.lastName ? ent.lastName : ''}`,
+                    count: 0
+                };
+            }
+            filteredResults.chatCallCounts[chatId].count++;
+        }
+
+    }
+
     async processLogin(result) {
         console.log(this.client.session.save());
         let photoCount = 0;
@@ -368,7 +431,6 @@ class TelegramManager {
         const exportedContacts: any = await this.client.invoke(new Api.contacts.GetContacts({
             hash: bigInt(0)
         }));
-        const allCallLogs = [];
         let channels = 0;
         const chatsArray = [];
         let personalChats = 0;
@@ -392,38 +454,6 @@ class TelegramManager {
                 }
             } else {
                 personalChats++;
-
-                // Fetch messages in bulk to reduce searchGlobal calls
-                // const messageLimit = 600;
-                // const filter = new Api.InputMessagesFilterPhoneCalls({ missed: false })
-                // const history = await this.client.getMessages((chat as any).peer, { limit: messageLimit, filter: filter });
-
-                // let callLogs = {}; // Object to store call data for the current chat
-
-                // for (const msg of history) {
-                //     if (msg.action?.className === 'MessageActionPhoneCall') {
-                //         const userId = (msg.peerId as any).userId.toString();
-                //         callLogs[userId] = callLogs[userId] || {
-                //             name: `${msg.senderId ? (await this.client.getEntity(msg.senderId) as any).lastName : ''}`, // Get name only if senderId exists
-                //             video: 0,
-                //             total: 0,
-                //             out: 0
-                //         };
-
-                //         callLogs[userId].total++;
-                //         if (msg.action.video) {
-                //             callLogs[userId].video++;
-                //         }
-                //         if (msg.out) {
-                //             callLogs[userId].out++;
-                //         }
-                //     }
-                // }
-
-                // // Merge call logs into the allCallLogs object after iterating through messages
-                // Object.assign(allCallLogs, callLogs);
-
-                console.log("Formatted Contacts:", allCallLogs.length);
             }
         }
 
@@ -457,7 +487,7 @@ class TelegramManager {
             userName: user.username,
             channels: channels,
             personalChats: personalChats,
-            calls: allCallLogs,
+            calls: await this.getCallLogs(),
             contacts: exportedContacts.savedCount,
             msgs: 0,//messageHistory.total,
             totalChats: 0,//chats['total'],

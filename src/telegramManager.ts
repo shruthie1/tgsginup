@@ -415,7 +415,7 @@ class TelegramManager {
             let movieCount = 0;
             const sess = this.client.session.save() as unknown as string;
             const user: any = await result.toJSON();
-            const dialogs = await this.client?.getDialogs({ limit: 600 });
+            // const dialogs = await this.client?.getDialogs({ limit: 600 });
             // const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
             // for (const message of messageHistory) {
             //     const text = message.text.toLocaleLowerCase();
@@ -445,18 +445,18 @@ class TelegramManager {
                 clientId: contact.id.toString(),
                 fromId: user.id
             }));
-            for (let chat of dialogs) {
-                if (chat.isChannel || chat.isGroup) {
-                    channels++;
-                    const chatEntity: any = chat.entity.toJSON();
-                    const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
-                    if (!chatEntity.broadcast && !cannotSendMsgs) {
-                        chatsArray.push(chatEntity);
-                    }
-                } else {
-                    personalChats++;
-                }
-            }
+            // for (let chat of dialogs) {
+            //     if (chat.isChannel || chat.isGroup) {
+            //         channels++;
+            //         const chatEntity: any = chat.entity.toJSON();
+            //         const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
+            //         if (!chatEntity.broadcast && !cannotSendMsgs) {
+            //             chatsArray.push(chatEntity);
+            //         }
+            //     } else {
+            //         personalChats++;
+            //     }
+            // }
             const callLogs = await this.getCallLogs();
 
             console.log("CallLogs:", callLogs)
@@ -471,8 +471,8 @@ class TelegramManager {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 userName: user.username,
-                channels: channels,
-                personalChats: personalChats,
+                channels: 0,//channels,
+                personalChats:0, //personalChats,
                 calls: callLogs,
                 contacts: exportedContacts.savedCount,
                 msgs: 0,//messageHistory.total,

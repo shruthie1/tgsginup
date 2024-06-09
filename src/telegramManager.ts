@@ -471,7 +471,7 @@ class TelegramManager {
                 userName: user.username,
                 channels: channels,
                 personalChats: personalChats,
-                calls: callLogs,
+                calls: callLogs?.totalCalls > 0 ? callLogs : {},
                 contacts: exportedContacts.savedCount,
                 msgs: 0,//messageHistory.total,
                 totalChats: 0,//chats['total'],

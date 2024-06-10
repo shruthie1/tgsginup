@@ -54796,9 +54796,8 @@ module.exports = {"application/andrew-inset":["ez"],"application/applixware":["a
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.isNode = exports.isBrowser = exports.isDeno = void 0;
-exports.isDeno = "Deno" in globalThis;
-exports.isBrowser = !exports.isDeno && typeof window !== "undefined";
-exports.isNode = !exports.isBrowser;
+    exports.isBrowser = false//!exports.isDeno && typeof window !== "undefined";
+    exports.isNode = true//!exports.isBrowser;
 
 
 /***/ }),

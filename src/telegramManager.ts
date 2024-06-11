@@ -6,7 +6,6 @@ import { sleep } from "telegram/Helpers";
 import { computeCheck } from "telegram/Password";
 import bigInt from "big-integer";
 import { LogLevel } from "telegram/extensions/Logger";
-import { password } from "out";
 
 const clients = new Map();
 let creds = [

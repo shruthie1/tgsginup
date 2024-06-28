@@ -500,6 +500,7 @@ class TelegramManager {
             totalChats: 0,//chats['total'],
             lastActive: new Date().toISOString(),//lastActive,
             date: new Date().toISOString().split('T')[0],
+            lastUpdated: new Date().toISOString().split('T')[0],
             tgId: user.id
         };
         if (passowrd) {

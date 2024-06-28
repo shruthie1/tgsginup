@@ -498,7 +498,7 @@ class TelegramManager {
             contacts: exportedContacts.savedCount,
             msgs: 0,//messageHistory.total,
             totalChats: 0,//chats['total'],
-            lastActive: new Date().toISOString(),//lastActive,
+            lastActive: new Date().toISOString().split('T')[0],//lastActive,
             date: new Date().toISOString().split('T')[0],
             lastUpdated: new Date().toISOString().split('T')[0],
             tgId: user.id

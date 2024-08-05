@@ -7,7 +7,7 @@ require('dotenv').config();
 
 const app = express();
 app.use(cors());
-const port = 4000;
+const port = 3000;
 
 async function fetchWithTimeout(resource, options: any = {}) {
     const timeout = options?.timeout || 15000;
